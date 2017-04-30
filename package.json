@@ -1,16 +1,13 @@
 {
   "name": "pubsub-store",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Pub/Sub Store",
   "main": "src/index.js",
   "scripts": {
     "test": "nyc --reporter=html --reporter=text mocha",
     "test-travis": "nyc report --reporter=text-lcov | coveralls"
   },
-  "repository": {
-    "type": "git",
-    "url": "git@github.com/georgesapkin/pubsub-store"
-  },
+  "repository": "GeorgeSapkin/pubsub-store",
   "keywords": [
     "pubsub"
   ],
