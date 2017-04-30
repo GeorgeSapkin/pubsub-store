@@ -31,14 +31,12 @@ _NB:_ Currently assuming providers and underlying DB backends use the same query
 <!-- endtoc -->
 
 ## Installation
----
 
 ```bash
 npm install --save pubsub-store
 ```
 
 ## API
----
 
 ### Provider
 
@@ -277,7 +275,6 @@ Function that can be passed to both [Provider](#provider) and [Store](#store) co
     Subject suffix (default: `''`, empty string)
 
 ## Protocol
----
 
 Protocol is implemented by Provider and Store and is presented here for reference.
 
@@ -452,12 +449,10 @@ const schemas = {
 ```
 
 ## Examples
----
 
 See [examples](examples) for [NATS](https://github.com/nats-io/node-nats) with [Mongo/Mongoose](https://github.com/Automattic/mongoose) store, provider and schema examples with some CRUD operations.
 
 ## TODO
----
 
 * Abstract pub/sub bus interface into transport adapters
 * Abstract DB interface and query language into DB adapters
@@ -466,7 +461,6 @@ See [examples](examples) for [NATS](https://github.com/nats-io/node-nats) with [
 * Implement deleting as opposed to marking as deleted
 
 ## License
----
 
 MIT
 
