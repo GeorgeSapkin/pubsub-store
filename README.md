@@ -11,7 +11,7 @@ Multiple stores, possibly with different underlying databases, can service reque
 
 Providers can be used to create/update records while others providers subscribe to notifications.
 
-Integrates nicely with [graphql-schema-builder][graphql-schema-builder].
+Integrates nicely with [graphql-schema-builder][graphql-schema-builder]. See [Examples](#examples) for GraphQL client example.
 
 _NB:_ Currently assuming providers and underlying DB backends use the same query language.
 
@@ -450,7 +450,7 @@ const schemas = {
 
 ## Examples
 
-See [examples](examples) for [NATS](https://github.com/nats-io/node-nats) with [Mongo/Mongoose](https://github.com/Automattic/mongoose) store, provider and schema examples with some CRUD operations.
+See [examples](examples) for [NATS](https://github.com/nats-io/node-nats), [Mongo/Mongoose](https://github.com/Automattic/mongoose) and [GraphQL](https://github.com/facebook/graphql) examples.
 
 ## TODO
 

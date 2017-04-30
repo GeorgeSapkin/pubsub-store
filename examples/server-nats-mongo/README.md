@@ -2,4 +2,4 @@
 
 Store usage example.
 
-Assumes NATS instance is exposed on localhost:4222 and MongoDB instance is exposed on localhost:27017. Both without any security.
+Assumes NATS instance is exposed on `localhost:4222` and MongoDB instance is exposed on `localhost:27017`. Both without any security.

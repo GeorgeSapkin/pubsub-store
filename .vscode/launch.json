@@ -21,6 +21,13 @@
         {
             "type": "node",
             "request": "launch",
+            "name": "Launch GraphQL Client Example",
+            "program": "${workspaceRoot}/examples/client-nats-graphql/index.js",
+            "outFiles": []
+        },
+        {
+            "type": "node",
+            "request": "launch",
             "name": "Launch Server Example",
             "program": "${workspaceRoot}/examples/server-nats-mongo/index.js",
             "outFiles": []

@@ -8,8 +8,8 @@ const User = {
         },
 
         age: {
-            type:    Number,
-            require: false
+            type:     Number,
+            required: false
         },
 
         metadata: {

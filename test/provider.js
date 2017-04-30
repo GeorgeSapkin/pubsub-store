@@ -10,6 +10,7 @@ const {
 } = require('assert');
 
 const {
+    complement,
     curry,
     equals,
     F,
@@ -73,6 +74,7 @@ const goodProvider = new Provider({
 });
 
 const execRejects = rejects(exec);
+const isNot       = complement(is);
 
 describe('exec', () => {
     it('should resolve', () => {
@@ -287,7 +289,10 @@ describe('Provider', () => {
                 }
             })
             .deleteById(1, projection)
-            .then(curry(deepStrictEqual)([{ _id: 1 }]));
+            .then(res => {
+                assert(isNot(Array, res));
+                deepStrictEqual(res, { _id: 1 });
+            });
         });
 
         const badRejects  = rejects(badProvider.deleteById.bind(badProvider));
@@ -368,7 +373,7 @@ describe('Provider', () => {
         it('should resolve single entity', () => {
             const conditions = { _id: 1 };
             const projection = { a: 1 };
-            const result     = [{ c: 3 }];
+            const result     = { c: 3 };
 
             function request(sub, msg, options, next) {
                 strictEqual(sub, subjects.find[0]);
@@ -379,7 +384,7 @@ describe('Provider', () => {
                 }));
                 deepStrictEqual(options, { max: 1 });
 
-                return next(JSON.stringify(result));
+                return next(JSON.stringify([result]));
             }
 
             return new Provider({
@@ -391,7 +396,10 @@ describe('Provider', () => {
                     unsubscribe() {}
                 }
             }).findById(1, projection)
-            .then(curry(deepStrictEqual)(result));
+            .then(res => {
+                assert(isNot(Array, res));
+                deepStrictEqual(res, result);
+            });
         });
 
         it('should resolve nothing when more than one', () => {
@@ -462,7 +470,10 @@ describe('Provider', () => {
                 }
             })
             .updateById(1, object, projection)
-            .then(curry(deepStrictEqual)([{ _id: 1 }]));
+            .then(res => {
+                assert(isNot(Array, res));
+                deepStrictEqual(res, { _id: 1 });
+            });
         });
 
         it('should resolve an object and update metadata', () => {

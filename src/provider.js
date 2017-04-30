@@ -9,12 +9,12 @@ const {
 } = require('events');
 
 const {
-    __,
     always,
     bind,
     complement,
     curry,
-    gt,
+    equals,
+    head,
     identity,
     ifElse,
     is,
@@ -24,8 +24,7 @@ const {
     pipe,
     prop,
     tap,
-    tryCatch,
-    when
+    tryCatch
 } = require('ramda');
 
 const {
@@ -77,6 +76,11 @@ const processEvent= emit => pipe(
         emit,
         partial(emit, [null])
     )
+);
+
+const returnOneOnly = ifElse(pipe(prop('length'), equals(1)),
+    head,
+    always(null)
 );
 
 class Provider extends EventEmitter {
@@ -180,7 +184,7 @@ class Provider extends EventEmitter {
         if (isNil(id))
             return reject `id must be set`;
 
-        return this.delete({ _id: id }, projection);
+        return this.delete({ _id: id }, projection).then(returnOneOnly);
     }
 
     find(conditions, projection) {
@@ -219,7 +223,7 @@ class Provider extends EventEmitter {
             options: {
                 limit: 1
             }
-        }).then(when(pipe(prop('length'), gt(__, 1)), always(null)));
+        }).then(returnOneOnly);
     }
 
     updateById(id, object, projection) {
@@ -244,8 +248,13 @@ class Provider extends EventEmitter {
             projection
         }).then(() => this._find({
             conditions: { _id: id },
-            projection
-        }));
+
+            projection,
+
+            options: {
+                limit: 1
+            }
+        })).then(returnOneOnly);
     }
 
     _addListener(eventName, listener, sids) {
