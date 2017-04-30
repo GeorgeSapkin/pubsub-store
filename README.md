@@ -52,11 +52,15 @@ Exposes the underlying store in a convenient format.
 
 * `transport`
 
-    A connected transport instance. Must have `subscribe` and `unsubscribe` methods with following signatures:
+    A connected transport instance. Must have `request`, `subscribe` and `unsubscribe` methods with following signatures:
 
     ```js
 
     const transport = {
+        request(subject, msg, options, cb) {
+            // ...
+        },
+
         subscribe(subject, cb) {
             // ...
 
