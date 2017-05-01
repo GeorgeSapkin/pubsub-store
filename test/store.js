@@ -14,17 +14,14 @@ const {
 } = require('ramda');
 
 const {
+    getSubjects: _getSubjects,
     Store,
     StoreEvents
-} = require('../src/store');
+} = require('../');
 
 const {
     rejects
 } = require('./reject');
-
-const {
-    getSubjects: _getSubjects
-} = require('../src/subjects');
 
 const goodSchema = {
     name: 'Schema',

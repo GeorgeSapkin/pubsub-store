@@ -21,8 +21,11 @@ const {
 } = require('ramda');
 
 const {
-    exec,
     Provider
+} = require('../');
+
+const {
+    exec
 } = require('../src/provider');
 
 const {

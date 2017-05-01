@@ -6,7 +6,7 @@ const {
 
 const {
     getSubjects
-} = require('../src/subjects');
+} = require('../');
 
 describe('getSubjects', () => {
     it('should work with default args', () => {

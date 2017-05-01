@@ -5,7 +5,8 @@ const {
 } = require('./provider');
 
 const {
-    Store
+    Store,
+    StoreEvents
 } = require('./store');
 
 const {
@@ -13,8 +14,8 @@ const {
 } = require('./subjects');
 
 module.exports = {
+    getSubjects,
     Provider,
     Store,
-
-    getSubjects
+    StoreEvents
 };
