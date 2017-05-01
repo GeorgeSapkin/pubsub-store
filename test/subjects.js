@@ -14,7 +14,7 @@ describe('getSubjects', () => {
 
         deepStrictEqual(subjects, {
             create: ['create.schema', 'create.schema.>'],
-            find:   ['find.schema'],
+            find:   ['find.schema',   'find.schema.>'],
             update: ['update.schema', 'update.schema.>']
         });
     });
@@ -30,7 +30,7 @@ describe('getSubjects', () => {
 
         deepStrictEqual(subjects, {
             create: ['a.schema', 'a.schema.>'],
-            find:   ['b.schema'],
+            find:   ['b.schema', 'b.schema.>'],
             update: ['c.schema', 'c.schema.>']
         });
     });
@@ -40,7 +40,7 @@ describe('getSubjects', () => {
 
         deepStrictEqual(subjects, {
             create: ['create.schema.customer', 'create.schema.customer.>'],
-            find:   ['find.schema.customer'],
+            find:   ['find.schema.customer',   'find.schema.customer.>'],
             update: ['update.schema.customer', 'update.schema.customer.>']
         });
     });
@@ -57,7 +57,7 @@ describe('getSubjects', () => {
 
         deepStrictEqual(subjects, {
             create: ['d.schema.device-type', 'd.schema.device-type.>'],
-            find:   ['e.schema.device-type'],
+            find:   ['e.schema.device-type', 'e.schema.device-type.>'],
             update: ['f.schema.device-type', 'f.schema.device-type.>']
         });
     });

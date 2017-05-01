@@ -19,7 +19,8 @@ function getSubjects(name, { prefixes = Prefixes, suffix = '' } = {}) {
             `${prefixes.create}.${_name}${_suffix}.>`
         ],
         find: [
-            `${prefixes.find  }.${_name}${_suffix}`
+            `${prefixes.find}.${_name}${_suffix}`,
+            `${prefixes.find}.${_name}${_suffix}.>`
         ],
         update: [
             `${prefixes.update}.${_name}${_suffix}`,

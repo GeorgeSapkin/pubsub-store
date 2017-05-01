@@ -124,9 +124,12 @@ describe('Store', () => {
                     strictEqual(sub, subjects.find[0]);
                     break;
                 case 3:
-                    strictEqual(sub, subjects.update[0]);
+                    strictEqual(sub, subjects.find[1]);
                     break;
                 case 4:
+                    strictEqual(sub, subjects.update[0]);
+                    break;
+                case 5:
                     strictEqual(sub, subjects.update[1]);
                     break;
                 }
@@ -148,7 +151,7 @@ describe('Store', () => {
 
             store.open();
 
-            deepStrictEqual(store._sids, [1, 2, 3, 4, 5]);
+            deepStrictEqual(store._sids, [1, 2, 3, 4, 5, 6]);
         });
 
         it('should throw when already opened', () => {
