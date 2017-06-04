@@ -10,7 +10,8 @@ const {
 const {
     bind,
     F,
-    is
+    is,
+    partial
 } = require('ramda');
 
 const {
@@ -39,6 +40,7 @@ const goodTransport = {
 
 function buildModel() {
     return {
+        count:  F,
         create: F,
         find:   F,
         update: F
@@ -59,6 +61,11 @@ describe('Store', () => {
             assert(is(Function, store._subscribe));
             assert(is(Function, store._unsubscribe));
 
+            assert(is(Function, store._onCount));
+            assert(is(Function, store._onCreate));
+            assert(is(Function, store._onFind));
+            assert(is(Function, store._onUpdate));
+
             deepStrictEqual(store._subjects, getSubjects(goodSchema.name));
 
             assert(is(Array, store._sids));
@@ -70,9 +77,10 @@ describe('Store', () => {
 
         it('should work with custom getSubjects', () => {
             testCtor(name => ({
-                create: ['a', 'b'],
-                find:   ['c', `d.${name}`, 'e'],
-                update: ['f.>']
+                count:  ['a', 'b'],
+                create: ['c', 'd'],
+                find:   ['e', `f.${name}`, 'g'],
+                update: ['h.>']
             }));
         });
 
@@ -115,21 +123,27 @@ describe('Store', () => {
 
                 switch (c) {
                 case 0:
-                    strictEqual(sub, subjects.create[0]);
+                    strictEqual(sub, subjects.count[0]);
                     break;
                 case 1:
-                    strictEqual(sub, subjects.create[1]);
+                    strictEqual(sub, subjects.count[1]);
                     break;
                 case 2:
-                    strictEqual(sub, subjects.find[0]);
+                    strictEqual(sub, subjects.create[0]);
                     break;
                 case 3:
-                    strictEqual(sub, subjects.find[1]);
+                    strictEqual(sub, subjects.create[1]);
                     break;
                 case 4:
-                    strictEqual(sub, subjects.update[0]);
+                    strictEqual(sub, subjects.find[0]);
                     break;
                 case 5:
+                    strictEqual(sub, subjects.find[1]);
+                    break;
+                case 6:
+                    strictEqual(sub, subjects.update[0]);
+                    break;
+                case 7:
                     strictEqual(sub, subjects.update[1]);
                     break;
                 }
@@ -151,7 +165,7 @@ describe('Store', () => {
 
             store.open();
 
-            deepStrictEqual(store._sids, [1, 2, 3, 4, 5, 6]);
+            deepStrictEqual(store._sids, [1, 2, 3, 4, 5, 6, 7, 8]);
         });
 
         it('should throw when already opened', () => {
@@ -228,7 +242,9 @@ describe('Store', () => {
         });
     });
 
-    function testOn(method, errorEvent, msg, _default, resolved = { a: 1 }) {
+    function testOn(method, errorEvent, msg, resolved = {
+        result: { a: 1 }
+    }) {
         describe('should reject', () => {
             const store = new Store({
                 buildModel,
@@ -256,15 +272,19 @@ describe('Store', () => {
 
         describe('should resolve', () => {
             const goodBuildModel = () => ({
+                count:  partial(bind(Promise.resolve, Promise), [7]),
                 create: bind(Promise.resolve, Promise),
                 find:   bind(Promise.resolve, Promise),
                 update: bind(Promise.resolve, Promise)
             });
 
+            const err = new Error('msg');
+
             const badBuildModel = () => ({
-                create: bind(Promise.reject, Promise),
-                find:   bind(Promise.reject, Promise),
-                update: bind(Promise.reject, Promise)
+                count:  partial(bind(Promise.reject, Promise), [err]),
+                create: partial(bind(Promise.reject, Promise), [err]),
+                find:   partial(bind(Promise.reject, Promise), [err]),
+                update: partial(bind(Promise.reject, Promise), [err])
             });
 
             it('with good args', done => {
@@ -291,11 +311,13 @@ describe('Store', () => {
                 store[method](JSON.stringify(msg), 'replyTo');
             });
 
-            it('and return empty when model rejects', done => {
+            it('and return error when model rejects', done => {
                 function publish(sub, msg) {
                     strictEqual(sub, 'replyTo');
                     assert(is(String, msg));
-                    strictEqual(msg, JSON.stringify(_default));
+                    strictEqual(msg, JSON.stringify({ error: {
+                        message: err.message
+                    }}));
 
                     done();
                 }
@@ -317,14 +339,22 @@ describe('Store', () => {
         });
     }
 
+    describe('_onCount', () => testOn(
+        '_onCount',
+        StoreEvents.CountError,
+        {
+            object: { a: 1, b: 2 }
+        },
+        { result: 7 }
+    ));
+
     describe('_onCreate', () => testOn(
         '_onCreate',
         StoreEvents.CreateError,
         {
             object: { a: 1, b: 2 },
             projection: { a: 1 }
-        },
-        {}
+        }
     ));
 
     describe('_onFind', () => testOn(
@@ -332,8 +362,7 @@ describe('Store', () => {
         StoreEvents.FindError,
         {
             conditions: { a: 1 }
-        },
-        []
+        }
     ));
 
     describe('_onUpdate', () => testOn(
@@ -343,7 +372,6 @@ describe('Store', () => {
             conditions: { id: 1 },
             object:     { a: 1 }
         },
-        [],
-        { id: 1 }
+        { result: { id: 1 } }
     ));
 });

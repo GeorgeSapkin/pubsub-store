@@ -25,6 +25,7 @@ const {
 } = require('../');
 
 const {
+    batchExec,
     exec
 } = require('../src/provider');
 
@@ -79,19 +80,140 @@ const goodProvider = new Provider({
 const execRejects = rejects(exec);
 const isNot       = complement(is);
 
+describe('batchExec', () => {
+    describe('should resolve', () => {
+        it('with no elements', () => {
+            const result = [];
+
+            function exec(options) {
+                deepStrictEqual(options, {
+                    limit: 2,
+                    skip:  0
+                });
+
+                return Promise.resolve(result);
+            }
+
+            return batchExec(exec, 2, { limit: 5 })
+                .then(res => deepStrictEqual(res, result));
+        });
+
+        it('with less elements', () => {
+            const result = [{
+                b: 3
+            }, {
+                c: 5
+            }, {
+                d: 7
+            }];
+
+            let i = 0;
+
+            function exec(options) {
+                switch (i++) {
+                case 0:
+                    deepStrictEqual(options, {
+                        limit: 2,
+                        skip:  0
+                    });
+
+                    return Promise.resolve(result.slice(0, 2));
+                case 1:
+                    deepStrictEqual(options, {
+                        limit: 2,
+                        skip:  2
+                    });
+
+                    return Promise.resolve(result.slice(2));
+                }
+            }
+
+            return batchExec(exec, 2, { limit: 5 })
+                .then(res => deepStrictEqual(res, result));
+        });
+
+        it('with more elements', () => {
+            const result = [{
+                b: 3
+            }, {
+                c: 5
+            }, {
+                d: 7
+            }, {
+                e: 11
+            }];
+
+            let i = 0;
+
+            function exec(options) {
+                switch (i++) {
+                case 0:
+                    deepStrictEqual(options, {
+                        limit: 2,
+                        skip:  0
+                    });
+
+                    return Promise.resolve(result.slice(0, 2));
+                case 1:
+                    deepStrictEqual(options, {
+                        limit: 1,
+                        skip:  2
+                    });
+
+                    return Promise.resolve(result.slice(2, 3));
+                }
+            }
+
+            return batchExec(exec, 2, { limit: 3 })
+                .then(res => deepStrictEqual(res, result.slice(0, 3)));
+        });
+    });
+});
+
 describe('exec', () => {
-    it('should resolve', () => {
-        const query = { a: 1 };
+    describe('should resolve', () => {
+        it('an object', () => {
+            const query  = { a: 1 };
+            const result = { b: 1 };
 
-        function request(msg, _, next) {
-            strictEqual(msg, JSON.stringify(query));
-            return next(JSON.stringify({ b: 1 }));
-        }
+            function request(msg, _, next) {
+                strictEqual(msg, JSON.stringify(query));
+                return next(JSON.stringify({ result }));
+            }
 
-        return exec(request, 20, query);
+            return exec(request, 20, query)
+                .then(res => deepStrictEqual(res, result));
+        });
+
+        it('an array', () => {
+            const query  = { a: 1 };
+            const result = [{ b: 1 }];
+
+            function request(msg, _, next) {
+                strictEqual(msg, JSON.stringify(query));
+                return next(JSON.stringify({ result }));
+            }
+
+            return exec(request, 20, query)
+                .then(res => deepStrictEqual(res, result));
+        });
     });
 
-    it('should reject on timeout', execRejects(F, 10, { a: 1 }));
+    describe('should reject', () => {
+        function errorRequest(_0, _1, next) {
+            return next(JSON.stringify({ error: { message: 'msg' } }));
+        }
+
+        function badJsonRequest(_0, _1, next) {
+            return next('{');
+        }
+
+        it('on timeout', execRejects(F, 10, {}));
+
+        it('on error', execRejects(errorRequest, 10, {}));
+
+        it('with unparsable JSON', execRejects(badJsonRequest, 10, {}));
+    });
 });
 
 describe('Provider', () => {
@@ -112,6 +234,7 @@ describe('Provider', () => {
 
             deepStrictEqual(provider._subjects, getSubjects(schema.name));
 
+            assert(is(Function, provider._count));
             assert(is(Function, provider._create));
             assert(is(Function, provider._find));
             assert(is(Function, provider._update));
@@ -144,9 +267,10 @@ describe('Provider', () => {
 
         it('should work with good args with custom getSubjects',
             () => testCtor(goodSchemaWithFunFields, false, name => ({
-                create: ['a', 'b'],
-                find:   ['c', `d.${name}`, 'e'],
-                update: ['f.>']
+                count:  ['a', 'b'],
+                create: ['c', 'd'],
+                find:   ['e', `f.${name}`, 'g'],
+                update: ['h.>']
             })));
 
         it('should throw without any args', () => throws(() => new Provider));
@@ -154,6 +278,65 @@ describe('Provider', () => {
         it('should throw without transport', () => throws(() => new Provider({
             schema: goodSchema
         })));
+    });
+
+    describe('count', () => {
+        it('should resolve', () => {
+            const conditions = { b: 2 };
+            const result     = 7;
+
+            function request(sub, msg, options, next) {
+                strictEqual(sub, subjects.count[0]);
+                strictEqual(msg, JSON.stringify({ conditions }));
+                deepStrictEqual(options, { max: 1 });
+
+                return next(JSON.stringify({ result }));
+            }
+
+            return new Provider({
+                schema:    goodSchema,
+                transport: {
+                    request,
+
+                    subscribe()   {},
+                    unsubscribe() {}
+                }
+            }).count(conditions)
+            .then(res => deepStrictEqual(res, result));
+        });
+
+        const goodRejects = rejects(goodProvider.count.bind(goodProvider));
+
+        it('should reject when conditions is not set', goodRejects(null));
+    });
+
+    describe('countAll', () => {
+        it('should resolve', () => {
+            const result = 7;
+
+            function request(sub, msg, options, next) {
+                strictEqual(sub, subjects.count[0]);
+                strictEqual(msg, JSON.stringify({ conditions: {} }));
+                deepStrictEqual(options, { max: 1 });
+
+                return next(JSON.stringify({ result }));
+            }
+
+            return new Provider({
+                schema:    goodSchema,
+                transport: {
+                    request,
+
+                    subscribe()   {},
+                    unsubscribe() {}
+                }
+            }).countAll()
+            .then(res => deepStrictEqual(res, result));
+        });
+
+        const goodRejects = rejects(goodProvider.count.bind(goodProvider));
+
+        it('should reject when conditions is not set', goodRejects(null));
     });
 
     describe('create', () => {
@@ -166,7 +349,9 @@ describe('Provider', () => {
                 strictEqual(msg, JSON.stringify({ object, projection }));
                 deepStrictEqual(options, { max: 1 });
 
-                return next(JSON.stringify(merge(object, { _id: 1 })));
+                return next(JSON.stringify({
+                    result: merge(object, { _id: 1 })
+                }));
             }
 
             return new Provider({
@@ -179,7 +364,7 @@ describe('Provider', () => {
                 }
             })
             .create(object, projection)
-            .then(pipe(equals(merge(object, { _id: 1 })), assert));
+            .then(res => deepStrictEqual(res, merge(object, { _id: 1 })));
         });
 
         const goodRejects = rejects(goodProvider.create.bind(goodProvider));
@@ -196,7 +381,7 @@ describe('Provider', () => {
 
             function request(sub, msg, options, next) {
                 if (sub === subjects.find[0])
-                    return next(JSON.stringify([{ _id: 1 }]));
+                    return next(JSON.stringify({ result: [{ _id: 1 }] }));
                 else if (sub === subjects.update[0]) {
                     strictEqual(msg, JSON.stringify({
                         conditions: {
@@ -217,7 +402,7 @@ describe('Provider', () => {
                     }));
                     deepStrictEqual(options, { max: 1 });
 
-                    return next(JSON.stringify({ c: 1 }));
+                    return next(JSON.stringify({ result: [{ c: 1 }]}));
                 }
                 else
                     return assert(false);
@@ -252,10 +437,11 @@ describe('Provider', () => {
     describe('deleteById', () => {
         it('should resolve an object', () => {
             const projection = { b: 1 };
+            const result     = { _id: 1 };
 
             function request(sub, msg, options, next) {
                 if (sub === subjects.find[0])
-                    return next(JSON.stringify([{ _id: 1 }]));
+                    return next(JSON.stringify({ result: [result] }));
                 else if (sub === subjects.update[0]) {
                     strictEqual(msg, JSON.stringify({
                         conditions: {
@@ -294,7 +480,7 @@ describe('Provider', () => {
             .deleteById(1, projection)
             .then(res => {
                 assert(isNot(Array, res));
-                deepStrictEqual(res, { _id: 1 });
+                deepStrictEqual(res, result);
             });
         });
 
@@ -316,10 +502,17 @@ describe('Provider', () => {
 
             function request(sub, msg, options, next) {
                 strictEqual(sub, subjects.find[0]);
-                strictEqual(msg, JSON.stringify({ conditions, projection }));
+                strictEqual(msg, JSON.stringify({
+                    conditions,
+                    options: {
+                        limit: 5000,
+                        skip:  0
+                    },
+                    projection
+                }));
                 deepStrictEqual(options, { max: 1 });
 
-                return next(JSON.stringify(result));
+                return next(JSON.stringify({ result }));
             }
 
             return new Provider({
@@ -331,7 +524,7 @@ describe('Provider', () => {
                     unsubscribe() {}
                 }
             }).find(conditions, projection)
-            .then(curry(deepStrictEqual)(result));
+            .then(res => deepStrictEqual(res, result));
         });
 
         const goodRejects = rejects(goodProvider.find.bind(goodProvider));
@@ -349,10 +542,17 @@ describe('Provider', () => {
 
             function request(sub, msg, options, next) {
                 strictEqual(sub, subjects.find[0]);
-                strictEqual(msg, JSON.stringify({ conditions, projection }));
+                strictEqual(msg, JSON.stringify({
+                    conditions,
+                    options: {
+                        limit: 5000,
+                        skip:  0
+                    },
+                    projection
+                }));
                 deepStrictEqual(options, { max: 1 });
 
-                return next(JSON.stringify(result));
+                return next(JSON.stringify({ result }));
             }
 
             return new Provider({
@@ -364,7 +564,7 @@ describe('Provider', () => {
                     unsubscribe() {}
                 }
             }).findAll(projection)
-            .then(curry(deepStrictEqual)(result));
+            .then(res => deepStrictEqual(res, result));
         });
 
         const goodRejects = rejects(goodProvider.findAll.bind(goodProvider));
@@ -387,7 +587,7 @@ describe('Provider', () => {
                 }));
                 deepStrictEqual(options, { max: 1 });
 
-                return next(JSON.stringify([result]));
+                return next(JSON.stringify({ result: [result] }));
             }
 
             return new Provider({
@@ -419,7 +619,7 @@ describe('Provider', () => {
                 }));
                 deepStrictEqual(options, { max: 1 });
 
-                return next(JSON.stringify(result));
+                return next(JSON.stringify({ result }));
             }
 
             return new Provider({
@@ -443,12 +643,14 @@ describe('Provider', () => {
 
     describe('updateById', () => {
         it('should resolve an object', () => {
-            const object     = { a: 1 };
-            const projection = { b: 1 };
+            const object       = { a: 1 };
+            const projection   = { b: 1 };
+            const resultFind   = { _id: 1 };
+            const resultUpdate = { c: 1 };
 
             function request(sub, msg, options, next) {
                 if (sub === subjects.find[0])
-                    return next(JSON.stringify([{ _id: 1 }]));
+                    return next(JSON.stringify({ result: [resultFind] }));
                 else if (sub === subjects.update[0]) {
                     strictEqual(msg, JSON.stringify({
                         conditions: { _id: 1 },
@@ -457,7 +659,7 @@ describe('Provider', () => {
                     }));
                     deepStrictEqual(options, { max: 1 });
 
-                    return next(JSON.stringify({ c: 1 }));
+                    return next(JSON.stringify({ result: resultUpdate }));
                 }
                 else
                     return assert(false);
@@ -475,17 +677,19 @@ describe('Provider', () => {
             .updateById(1, object, projection)
             .then(res => {
                 assert(isNot(Array, res));
-                deepStrictEqual(res, { _id: 1 });
+                deepStrictEqual(res, resultFind);
             });
         });
 
         it('should resolve an object and update metadata', () => {
-            const object     = { a: 1 };
-            const projection = { b: 1 };
+            const object       = { a: 1 };
+            const projection   = { b: 1 };
+            const resultFind   = { _id: 1 };
+            const resultUpdate = { c: 1 };
 
             function request(sub, msg, options, next) {
                 if (sub === subjects.find[0])
-                    return next(JSON.stringify([{ _id: 1 }]));
+                    return next(JSON.stringify({ result: [resultFind] }));
                 else if (sub === subjects.update[0]) {
                     strictEqual(msg, JSON.stringify({
                         conditions: {
@@ -507,7 +711,7 @@ describe('Provider', () => {
                     }));
                     deepStrictEqual(options, { max: 1 });
 
-                    return next(JSON.stringify({ c: 1 }));
+                    return next(JSON.stringify({ result: resultUpdate }));
                 }
                 else
                     return assert(false);
@@ -523,7 +727,7 @@ describe('Provider', () => {
                 }
             })
             .updateById(1, object, projection)
-            .then(curry(deepStrictEqual)([{ _id: 1 }]));
+            .then(res => deepStrictEqual(res, resultFind));
         });
 
         const goodRejects = rejects(goodProvider.updateById.bind(goodProvider));

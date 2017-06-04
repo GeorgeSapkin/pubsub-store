@@ -127,9 +127,7 @@ function getSchema(resolvers, User, userProvider) {
                         const projection = getProjection(info);
                         return userProvider.updateById(id, {
                             $set: { name, age }
-                        }, projection).then(res => {
-                            return renameId(res);
-                        });
+                        }, projection).then(renameId);
                     }
                 }
             }

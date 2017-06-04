@@ -1,6 +1,6 @@
 {
   "name": "pubsub-store",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Pub/Sub Store",
   "main": "src/index.js",
   "scripts": {
@@ -14,10 +14,11 @@
   "author": "George Sapkin",
   "license": "MIT",
   "dependencies": {
-    "ramda": "^0.23.0"
+    "co": "^4.6.0",
+    "ramda": "^0.24.0"
   },
   "devDependencies": {
-    "mocha": "^3.2.0",
-    "nyc": "^10.2.0"
+    "mocha": "^3.4.2",
+    "nyc": "^11.0.2"
   }
 }

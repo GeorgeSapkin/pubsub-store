@@ -11,7 +11,6 @@ const {
 } = require('events');
 
 const {
-    always,
     bind,
     complement,
     curry,
@@ -27,6 +26,7 @@ const {
     nthArg,
     objOf,
     partial,
+    pick,
     pickAll,
     pickBy,
     pipe,
@@ -52,8 +52,10 @@ const catchP   = invoker(2, 'then')(null);
 const isNot    = complement(is);
 const isNotNil = complement(isNil);
 const thenP    = invoker(1, 'then');
+const thenP2   = invoker(2, 'then');
 
 const StoreEvents = {
+    CountError:  'count-error',
     CreateError: 'create-error',
     FindError:   'find-error',
     UpdateError: 'update-error'
@@ -63,7 +65,21 @@ const updateOptionsBase = {
     multi: true
 };
 
-const exec = curry((emit, publish, process, _default, msg, replyTo) => {
+/* Response format:
+ * {
+ *    result: {} or [] or value
+ *      or
+ *    error: {
+ *        message: "details"
+ *    }
+ * }
+ *
+ */
+
+const buildError  = pipe(pick(['message']), objOf('error'));
+const buildResult = objOf('result');
+
+const exec = curry((emit, publish, process, msg, replyTo) => {
     if (isNot(String, msg))
         return reject `msg must be a string`;
     if (isNot(String, replyTo))
@@ -75,11 +91,12 @@ const exec = curry((emit, publish, process, _default, msg, replyTo) => {
             pipe(
                 bind(Promise.reject, Promise),
                 tap(catchP(emit)),
+                catchP(buildError),
                 thenP(partial(publish, [replyTo]))
             ),
             pipe(
                 process,
-                catchP(_default),
+                thenP2(buildResult, buildError),
                 thenP(JSON.stringify),
                 thenP(partial(publish, [replyTo]))
             )
@@ -100,7 +117,7 @@ class Store extends EventEmitter {
         assert(buildModel instanceof Function,
             'buildModel must be a function');
         assertSchema(schema);
-        assert(transport != null, 'transport must be set');
+        assert(isNotNil(transport), 'transport must be set');
 
         this._subscribe   = bind(transport.subscribe, transport);
         this._unsubscribe = bind(transport.unsubscribe, transport);
@@ -114,13 +131,19 @@ class Store extends EventEmitter {
         const publish = transport.publish.bind(transport);
         const emit    = this.emit.bind(this);
 
+        this._onCount = exec(
+            partial(emit, [StoreEvents.CountError]),
+            publish,
+            pipe(propOr({}, 'conditions'), model.count.bind(model))
+        );
+
         this._onCreate = exec(
             partial(emit, [StoreEvents.CreateError]),
             publish,
             // create model from object and then apply projection manually
             liftN(2, thenP)(
-                // assuming create model doesn't project so applying
-                // projection manually
+                // assuming create model doesn't project so applying projection
+                // manually
                 pipe(
                     prop('projection'),
                     ifElse(isNotNil,
@@ -138,8 +161,7 @@ class Store extends EventEmitter {
                     prop('object'),
                     model.create.bind(model)
                 )
-            ),
-            always({})
+            )
         );
 
         this._onFind = exec(
@@ -149,8 +171,7 @@ class Store extends EventEmitter {
                 propOr({}, 'conditions'),
                 prop('projection'),
                 prop('options')
-            ),
-            always([])
+            )
         );
 
         this._onUpdate = exec(
@@ -164,8 +185,7 @@ class Store extends EventEmitter {
                     objOf('select'),
                     merge(updateOptionsBase)
                 )
-            ),
-            always([])
+            )
         );
     }
 
@@ -173,6 +193,8 @@ class Store extends EventEmitter {
         deepStrictEqual(this._sids, [], 'Store already opened');
 
         this._sids.push(
+            ...this._subjects.count.map(
+                sub => this._subscribe(sub, this._onCount)),
             ...this._subjects.create.map(
                 sub => this._subscribe(sub, this._onCreate)),
             ...this._subjects.find.map(

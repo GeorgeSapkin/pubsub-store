@@ -1,6 +1,7 @@
 'use strict';
 
 const Prefixes = {
+    count:  'count',
     create: 'create',
     find:   'find',
     update: 'update'
@@ -14,6 +15,10 @@ function getSubjects(name, { prefixes = Prefixes, suffix = '' } = {}) {
         : '';
 
     return {
+        count: [
+            `${prefixes.count}.${_name}${_suffix}`,
+            `${prefixes.count}.${_name}${_suffix}.>`
+        ],
         create: [
             `${prefixes.create}.${_name}${_suffix}`,
             `${prefixes.create}.${_name}${_suffix}.>`

@@ -44,7 +44,7 @@ Exposes the underlying store in a convenient format.
 
 #### Methods
 
-`constructor({ schema, transport, getSubjects, options: { timeout }}`
+`constructor({ schema, transport, getSubjects, options: { batchSize, timeout }}`
 
 * `schema`
 
@@ -76,13 +76,29 @@ Exposes the underlying store in a convenient format.
 
     Optional function that returns protocol subjects. Default implementation in [subjects.js](src/subjects.js).
 
-* `options`
+* `options` _optional_
+
+    * `batchSize`
+
+        Maximum result batch size. If there are more query results than `batchSize`, results will be loaded in batches of that size.
 
     * `timeout`
 
         Query timeout in milliseconds (default: 1000).
 
-`create`
+`count(conditions)`
+
+Returns a number of entities matching `conditions`.
+
+* `conditions`
+
+    Conditions to count entities based on.
+
+`countAll()`
+
+Returns a number of all entities in store (excluding those marked as deleted).
+
+`create(object, projection)`
 
 Creates an entity based on `object` and returns projected fields of the new entity.
 
@@ -94,7 +110,7 @@ Creates an entity based on `object` and returns projected fields of the new enti
 
     Projection of the fields from created entity to be returned.
 
-`delete`
+`delete(conditions, projection)`
 
 Deletes entities based on `conditions` and returns projected fields of deleted entities.
 
@@ -106,7 +122,7 @@ Deletes entities based on `conditions` and returns projected fields of deleted e
 
     Projection of the fields from deleted entities to be returned.
 
-`deleteById`
+`deleteById(id, projection)`
 
 Deletes an entity based on `id` and returns projected fields of deleted entity.
 
@@ -118,7 +134,7 @@ Deletes an entity based on `id` and returns projected fields of deleted entity.
 
     Projection of the fields from deleted entity to be returned.
 
-`find`
+`find(conditions, projection, options)`
 
 Find entities based on `conditions` and returns projected fields of found entities.
 
@@ -130,7 +146,11 @@ Find entities based on `conditions` and returns projected fields of found entiti
 
     Projection of the fields from found entities to be returned.
 
-`findAll`
+* `options` _optional_
+
+    Query options (e.g. limit).
+
+`findAll(projection, options)`
 
 Find all entities and returns projected fields of found entities.
 
@@ -138,7 +158,11 @@ Find all entities and returns projected fields of found entities.
 
     Projection of the fields from found entities to be returned.
 
-`findById`
+* `options` _optional_
+
+    Query options (e.g. limit).
+
+`findById(id, projections)`
 
 Find entities based on `id` and returns projected fields of found entity.
 
@@ -150,7 +174,7 @@ Find entities based on `id` and returns projected fields of found entity.
 
     Projection of the fields from found entity to be returned.
 
-`updateById`
+`updateById(id, object, projection)`
 
 Updates an entity based on `id` using `object` and returns projected fields of the updated entity.
 
@@ -258,23 +282,24 @@ Events are emitted on corresponding request errors.
 
 Function that can be passed to both [Provider](#provider) and [Store](#store) constructors and returns protocol subjects based on schema name.
 
-* name
+* `name`
 
     Schema name.
 
-* prefixes
+* `prefixes`
 
     Object with subject prefixes. Defaults to:
 
     ```js
     const Prefixes = {
+        count:  'count',
         create: 'create',
         find:   'find',
         update: 'update'
     };
     ```
 
-* suffix
+* `suffix` _optional_
 
     Subject suffix (default: `''`, empty string)
 
@@ -286,7 +311,38 @@ _NB:_ Currently assuming providers and underlying DB backends use the same query
 
 _NB:_ Projections cannot have both included and excluded fields.
 
-### Create
+### Result
+
+```js
+{
+    result: resultObject // or an array, or a value
+}
+```
+
+### Error
+
+```js
+{
+    error: {
+        message: "Error details"
+    }
+}
+```
+
+### Count Method
+
+Count request is published to `count.schema-name` subject by default. Returns the number of entities matching conditions.
+
+```js
+{
+    conditions: {
+        field1: 'value 2',
+        // etc.
+    }
+}
+```
+
+### Create Method
 
 Create request is published to `create.schema-name` subject by default. Returns newly-created entity with projection applied.
 
@@ -305,7 +361,7 @@ Create request is published to `create.schema-name` subject by default. Returns 
 }
 ```
 
-### Find
+### Find Method
 
 Find request is published to `find.schema-name` subject by default. Returns a list of entities matching conditions with projection applied or an empty list.
 
@@ -327,7 +383,7 @@ Find request is published to `find.schema-name` subject by default. Returns a li
 }
 ```
 
-### Update
+### Update Method
 
 Update request is published to `update.schema-name` subject by default. Returns updated entity with projection applied or an empty list.
 

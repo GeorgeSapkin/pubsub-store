@@ -64,9 +64,13 @@ function onTransportConnected(transport) {
         logger.log('All users after create', usersAfterCreate);
 
         const newName = faker.name.findName();
+
         const updatedUser = yield userProvider.updateById(
             createdUser._id, { $set: { name: newName } }, projection);
         logger.log('Updated user', updatedUser);
+
+        const count = yield userProvider.countAll();
+        logger.log('Number of users', count);
 
         const deletedUser = yield userProvider.deleteById(
             createdUser._id, projection);

@@ -12,11 +12,11 @@
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.3",
-    "express": "^4.15.2",
-    "express-graphql": "^0.6.4",
-    "graphql": "^0.9.5",
-    "graphql-schema-builder": "^0.4.0",
-    "nats": "^0.7.16",
+    "express": "^4.15.3",
+    "express-graphql": "^0.6.6",
+    "graphql": "^0.10.1",
+    "graphql-schema-builder": "^0.4.1",
+    "nats": "^0.7.20",
     "server-destroy": "^1.0.1"
   }
 }

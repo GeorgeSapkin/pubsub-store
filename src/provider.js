@@ -1,6 +1,10 @@
 'use strict';
 
 const {
+    wrap
+} = require('co');
+
+const {
     ok: assert
 } = require('assert');
 
@@ -12,6 +16,7 @@ const {
     always,
     bind,
     complement,
+    constructN,
     curry,
     equals,
     head,
@@ -20,7 +25,9 @@ const {
     is,
     isNil,
     merge,
+    min,
     partial,
+    path,
     pipe,
     prop,
     tap,
@@ -65,10 +72,37 @@ const exec = curry((request, timeout, query) => new Promise(
                 timeout
             ) ])),
             JSON.parse,
-            resolve
+
+            // if error is not set -> resolve
+            // else                -> reject
+            ifElse(pipe(prop('error'), isNil),
+                // Add 'more' to 'result' if it exists and resolve
+                pipe(prop('result'), resolve),
+                pipe(path(['error', 'message']), constructN(1, Error), reject)
+            )
         )
     )
 ));
+
+const batchExec = wrap(function*(exec, batchSize, options) {
+    const limit  = options.limit || batchSize;
+    const result = [];
+
+    for (let skip = 0, left = limit; left > 0; ++skip) {
+        const batch = yield exec(merge(options, {
+            limit: min(left, batchSize),
+            skip:  batchSize * skip
+        }));
+
+        result.push(...batch);
+
+        left -= batchSize;
+        if (batch.length < batchSize)
+            break;
+    }
+
+    return result;
+});
 
 const processEvent= emit => pipe(
     tryCatch(JSON.parse, identity),
@@ -91,7 +125,8 @@ class Provider extends EventEmitter {
         getSubjects = _getSubjects,
 
         options: {
-            timeout = 1000
+            batchSize = 5000,
+            timeout    = 1000
         } = {}
     }) {
         super();
@@ -102,12 +137,17 @@ class Provider extends EventEmitter {
         this._schema    = schema;
         this._transport = transport;
 
+        this._batchSize = batchSize;
+
         this._subscribe   = bind(transport.subscribe, transport);
         this._unsubscribe = bind(transport.unsubscribe, transport);
 
         this._subjects = getSubjects(schema.name);
         {
             const request = bind(transport.request, transport);
+
+            this._count = exec(
+                partial(request, [this._subjects.count[0]]), timeout);
 
             this._create = exec(
                 partial(request, [this._subjects.create[0]]), timeout);
@@ -145,6 +185,21 @@ class Provider extends EventEmitter {
         this._mergeConditions = merge(this._defaultConditions);
     }
 
+    count(conditions) {
+        if (isNil(conditions))
+            return reject `conditions must be set`;
+
+        return this._count({
+            conditions: this._mergeConditions(conditions)
+        });
+    }
+
+    countAll() {
+        return this._count({
+            conditions: this._defaultConditions
+        });
+    }
+
     create(object, projection) {
         if (isNil(object))
             return reject `object must be set`;
@@ -174,10 +229,18 @@ class Provider extends EventEmitter {
                 }
             },
             projection
-        }).then(() => this._find({
-            conditions,
+        }).then(() => batchExec(_options => this._find({
+            conditions: merge(conditions, {
+                [DELETED]: {
+                    $exists: true,
+                    $ne:     null
+                }
+            }),
+
+            options: _options,
+
             projection
-        }));
+        }), this._batchSize, {}));
     }
 
     deleteById(id, projection) {
@@ -187,26 +250,22 @@ class Provider extends EventEmitter {
         return this.delete({ _id: id }, projection).then(returnOneOnly);
     }
 
-    find(conditions, projection) {
+    find(conditions, projection, options = {}) {
         if (isNil(conditions))
             return reject `conditions must be set`;
         if (isNil(projection))
             return reject `projection must be set`;
 
-        return this._find({
+        return batchExec(_options => this._find({
             conditions: this._mergeConditions(conditions),
+            options:    _options,
+
             projection
-        });
+        }), this._batchSize, options);
     }
 
-    findAll(projection) {
-        if (isNil(projection))
-            return reject `projection must be set`;
-
-        return this._find({
-            conditions: this._defaultConditions,
-            projection
-        });
+    findAll(projection, options = {}) {
+        return this.find({}, projection, options);
     }
 
     findById(id, projection) {
@@ -337,5 +396,6 @@ class Provider extends EventEmitter {
 module.exports = {
     Provider,
 
+    batchExec,
     exec
 };
