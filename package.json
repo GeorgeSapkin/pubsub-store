@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "test": "jest --coverage --silent=false",
-    "test-travis": "npm test | coveralls"
+    "test-travis": "npm test && cat ./coverage/lcov.info | coveralls"
   },
   "repository": "GeorgeSapkin/pubsub-store",
   "keywords": [
