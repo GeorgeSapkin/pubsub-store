@@ -1,19 +1,19 @@
 'use strict';
 
 const {
-    ok: assert
+  ok: assert
 } = require('assert');
 
 const {
-    is
+  is
 } = require('ramda');
 
 function assertSchema(schema) {
-    assert(schema != null, 'schema must be set');
-    assert(is(String, schema.name), 'Schema name must be as string');
-    assert(schema.fields != null, 'Schema fields must be set');
+  assert(schema != null, 'schema must be set');
+  assert(is(String, schema.name), 'Schema name must be as string');
+  assert(schema.fields != null, 'Schema fields must be set');
 }
 
 module.exports = {
-    assertSchema
+  assertSchema
 };

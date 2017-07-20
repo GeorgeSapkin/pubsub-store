@@ -1,21 +1,21 @@
 'use strict';
 
 const {
-    Provider
+  Provider
 } = require('./provider');
 
 const {
-    Store,
-    StoreEvents
+  Store,
+  StoreEvents
 } = require('./store');
 
 const {
-    getSubjects
+  getSubjects
 } = require('./subjects');
 
 module.exports = {
-    getSubjects,
-    Provider,
-    Store,
-    StoreEvents
+  getSubjects,
+  Provider,
+  Store,
+  StoreEvents
 };

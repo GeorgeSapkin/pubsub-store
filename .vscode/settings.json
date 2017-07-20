@@ -1,7 +1,8 @@
 // Place your settings in this file to overwrite default and user settings.
 {
+    "editor.tabSize": 2,
+    "eslint.autoFixOnSave": true,
     "files.exclude": {
-        "**/.git": true,
-        ".nyc_output": true
+        "**/.git": true
     }
 }

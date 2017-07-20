@@ -3,7 +3,7 @@ coverage
 examples
 node_modules
 test
-.eslintrc.json
+.eslintrc
 .gitignore
 .travis.yml
 yarn.lock
