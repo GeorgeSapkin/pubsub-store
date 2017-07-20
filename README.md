@@ -42,7 +42,7 @@ npm install --save pubsub-store
 
 Exposes the underlying store in a convenient format.
 
-Implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duplex) stream to create and receive created entities.
+Implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duplex) stream to create and receive created entities. See [client-nats-streaming](examples/client-nats-streaming) example for details.
 
 #### Methods
 
