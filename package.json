@@ -4,8 +4,8 @@
   "description": "Pub/Sub Store",
   "main": "src/index.js",
   "scripts": {
-    "test": "nyc --reporter=html --reporter=text mocha",
-    "test-travis": "nyc report --reporter=text-lcov | coveralls"
+    "test": "jest --coverage --silent=false",
+    "test-travis": "npm test | coveralls"
   },
   "repository": "GeorgeSapkin/pubsub-store",
   "keywords": [
@@ -15,10 +15,18 @@
   "license": "MIT",
   "dependencies": {
     "co": "^4.6.0",
-    "ramda": "^0.24.0"
+    "ramda": "^0.24.1"
   },
   "devDependencies": {
-    "mocha": "^3.4.2",
-    "nyc": "^11.0.2"
+    "jest": "^20.0.4"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/*.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/examples/"
+    ]
   }
 }
