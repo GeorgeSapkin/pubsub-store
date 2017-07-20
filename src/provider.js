@@ -1,16 +1,13 @@
 'use strict';
 
 const {
+  co,
   wrap
 } = require('co');
 
 const {
   ok: assert
 } = require('assert');
-
-const {
-  EventEmitter
-} = require('events');
 
 const {
   always,
@@ -35,6 +32,10 @@ const {
 } = require('ramda');
 
 const {
+  Duplex
+} = require('stream');
+
+const {
   assertSchema
 } = require('./assert');
 
@@ -47,6 +48,7 @@ const {
 } = require('./subjects');
 
 const CREATE = 'create';
+const ERROR  = 'error';
 const UPDATE = 'update';
 
 const DELETED = 'metadata.deleted';
@@ -117,7 +119,15 @@ const returnOneOnly = ifElse(pipe(prop('length'), equals(1)),
   always(null)
 );
 
-class Provider extends EventEmitter {
+class ProviderError extends Error {
+  constructor(message) {
+    super();
+
+    this.message = message;
+  }
+}
+
+class Provider extends Duplex {
   constructor({
     schema,
     transport,
@@ -129,10 +139,14 @@ class Provider extends EventEmitter {
       timeout    = 1000
     } = {}
   }) {
-    super();
+    super({
+      objectMode: true
+    });
 
     assertSchema(schema);
     assert(transport != null, 'transport must be set');
+
+    this._readableStreamInitialized = false;
 
     this._schema    = schema;
     this._transport = transport;
@@ -328,7 +342,8 @@ class Provider extends EventEmitter {
         ...this._removeAllListeners(CREATE),
         ...this._removeAllListeners(UPDATE)
       );
-    } else {
+    }
+    else {
       for (let x of this._listeners[eventName].values())
         sids.push(...x);
       this._listeners[eventName] = new Map();
@@ -390,10 +405,49 @@ class Provider extends EventEmitter {
 
     return super.removeListener(eventName, listener);
   }
+
+  _read() {
+    if (!this._readableStreamInitialized) {
+      this.on(CREATE, this._onCreate.bind(this));
+
+      this._readableStreamInitialized = true;
+    }
+  }
+
+  _onCreate(err, msg) {
+    if (isNotNil(err))
+      return this.emit(ERROR, err);
+
+    const { object } = msg;
+
+    if (isNil(object))
+      return this.emit(ERROR, new ProviderError('msg.object is not set'));
+
+    this.push(object);
+  }
+
+  _write(chunk, _, callback) {
+    const resolve = partial(callback, [null]);
+    const reject  = callback;
+
+    this.create(chunk, { id: 1 }).then(resolve, reject);
+  }
+
+  _writev(chunks, callback) {
+    const resolve = partial(callback, [null]);
+    const reject  = callback;
+
+    const create = this.create.bind(this);
+
+    co(function* () {
+      return yield chunks.map(({ chunk }) => create(chunk, { id: 1 }));
+    }).then(resolve, reject);
+  }
 }
 
 module.exports = {
   Provider,
+  ProviderError,
 
   batchExec,
   exec

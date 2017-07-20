@@ -1,7 +1,8 @@
 'use strict';
 
 const {
-  Provider
+  Provider,
+  ProviderError
 } = require('./provider');
 
 const {
@@ -16,6 +17,7 @@ const {
 module.exports = {
   getSubjects,
   Provider,
+  ProviderError,
   Store,
   StoreEvents
 };

@@ -4,15 +4,15 @@ const mongoose = require('mongoose');
 const nats     = require('nats');
 
 const {
-    F
+  F
 } = require('ramda');
 
 const {
-    Store
+  Store
 } = require('../../');
 
 const {
-    User
+  User
 } = require('../schema/user');
 
 // override default Mongoose promises: http://mongoosejs.com/docs/promises.html
@@ -29,44 +29,44 @@ const ERROR     = 'error';
 const RECONNECT = 'reconnect';
 
 function onTransportConnected(db, transport) {
-    logger.log('Connected to broker');
+  logger.log('Connected to broker');
 
-    process.on(SIGINT,  () => transport.close());
-    process.on(SIGTERM, () => transport.close());
+  process.on(SIGINT,  () => transport.close());
+  process.on(SIGTERM, () => transport.close());
 
-    function buildModel(schema) {
-        return db.model(schema.name, schema.fields);
-    }
+  function buildModel(schema) {
+    return db.model(schema.name, schema.fields);
+  }
 
-    const userStore = new Store({
-        schema: User,
+  const userStore = new Store({
+    schema: User,
 
-        buildModel,
-        transport
-    });
+    buildModel,
+    transport
+  });
 
-    userStore.open();
+  userStore.open();
 }
 
 function onDbConnected(db) {
-    logger.log('Connected to database');
+  logger.log('Connected to database');
 
-    process.on(SIGINT,  () => db.close());
-    process.on(SIGTERM, () => db.close());
+  process.on(SIGINT,  () => db.close());
+  process.on(SIGTERM, () => db.close());
 
-    const transport = nats.connect();
+  const transport = nats.connect();
 
-    transport.on(ERROR,     logger.error);
-    transport.on(RECONNECT, () => logger.log('Transport reconnected'));
-    transport.on(CONNECT,   () => onTransportConnected(db, transport));
+  transport.on(ERROR,     logger.error);
+  transport.on(RECONNECT, () => logger.log('Transport reconnected'));
+  transport.on(CONNECT,   () => onTransportConnected(db, transport));
 }
 
 {
-    const db = mongoose.createConnection();
+  const db = mongoose.createConnection();
 
-    db.on(ERROR, logger.error);
+  db.on(ERROR, logger.error);
 
-    db.on(CONNECTED, () => onDbConnected(db));
+  db.on(CONNECTED, () => onDbConnected(db));
 
-    db.open('mongodb://localhost/example').catch(F);
+  db.openUri('mongodb://localhost/example').catch(F);
 }

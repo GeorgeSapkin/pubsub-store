@@ -6,6 +6,13 @@
   },
   "extends": "standard",
   "rules": {
+    "brace-style": [
+      "warn",
+      "stroustrup",
+      {
+        "allowSingleLine": true
+      }
+    ],
     "curly": [
       "off"
     ],

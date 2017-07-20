@@ -21,7 +21,13 @@ const {
 } = require('ramda');
 
 const {
-  Provider
+  Readable,
+  Writable
+} = require('stream');
+
+const {
+  Provider,
+  ProviderError
 } = require('../');
 
 const {
@@ -403,7 +409,8 @@ describe('Provider', () => {
           deepStrictEqual(options, { max: 1 });
 
           return next(JSON.stringify({ result: [{ c: 1 }]}));
-        } else
+        }
+        else
           return assert(false);
       }
 
@@ -462,7 +469,8 @@ describe('Provider', () => {
           deepStrictEqual(options, { max: 1 });
 
           return next(JSON.stringify({ c: 1 }));
-        } else
+        }
+        else
           return assert(false);
       }
 
@@ -658,7 +666,8 @@ describe('Provider', () => {
           deepStrictEqual(options, { max: 1 });
 
           return next(JSON.stringify({ result: resultUpdate }));
-        } else
+        }
+        else
           return assert(false);
       }
 
@@ -709,7 +718,8 @@ describe('Provider', () => {
           deepStrictEqual(options, { max: 1 });
 
           return next(JSON.stringify({ result: resultUpdate }));
-        } else
+        }
+        else
           return assert(false);
       }
 
@@ -742,7 +752,8 @@ describe('Provider', () => {
         if (error) {
           assert(is(Error), err);
           equal(query, null);
-        } else {
+        }
+        else {
           equal(err, null);
           deepStrictEqual(query, { a: 1 });
         }
@@ -758,9 +769,9 @@ describe('Provider', () => {
 
         subscribe(sub, subListener) {
           if (sub === subjects[eventName][0])
-            return 1; // sid;
+            return 1; // sid
           else if (sub === subjects[eventName][1]) {
-            process.nextTick(() => {
+            setImmediate(() => {
               deepStrictEqual(
                 provider._listeners[eventName].get(listener),
                 [1, 2]
@@ -781,7 +792,7 @@ describe('Provider', () => {
         }
       };
 
-      const provider =  new Provider({
+      const provider = new Provider({
         schema: goodSchema,
 
         transport
@@ -1039,6 +1050,230 @@ describe('Provider', () => {
         provider.removeListener('update', F);
         equals(provider._listeners.create.get(F), null);
         equals(provider._listeners.update.get(F), null);
+      });
+    });
+  });
+
+  describe('Readable', () => {
+    describe('_read', () => {
+      it('should work', done => {
+        const msg = {
+          object: { a: 1 }
+        };
+
+        const provider = new Provider({
+          schema: goodSchema,
+
+          transport: {
+            request() {},
+
+            subscribe(sub, subListener) {
+              if (sub === subjects['create'][0])
+                return 1; // sid
+              else if (sub === subjects['create'][1]) {
+                setImmediate(() => subListener(JSON.stringify(msg)));
+
+                return 2; // sid
+              }
+            },
+
+            unsubscribe() {}
+          }
+        });
+
+        const testStream = new Writable({
+          objectMode: true,
+
+          write(chunk /*, encoding, callback */) {
+            deepStrictEqual(chunk, msg.object);
+
+            done();
+          }
+        });
+
+        provider.pipe(testStream);
+      });
+
+      it('should emit error on error', done => {
+        const provider = new Provider({
+          schema: goodSchema,
+
+          transport: {
+            request() {},
+
+            subscribe(sub /*, subListener */) {
+              if (sub === subjects['create'][0])
+                return 1; // sid
+              else if (sub === subjects['create'][1]) {
+                setImmediate(() => provider.emit('create', new Error()));
+
+                return 2; // sid
+              }
+            },
+
+            unsubscribe() {}
+          }
+        });
+
+        const testStream = new Writable({
+          objectMode: true,
+
+          write() {}
+        });
+
+        provider.on('error', err => {
+          assert(err instanceof Error);
+
+          done();
+        });
+
+        provider.pipe(testStream);
+      });
+
+      it('should emit error without object', done => {
+        const msg = {};
+
+        const provider = new Provider({
+          schema: goodSchema,
+
+          transport: {
+            request() {},
+
+            subscribe(sub, subListener) {
+              if (sub === subjects['create'][0])
+                return 1; // sid
+              else if (sub === subjects['create'][1]) {
+                setImmediate(() => subListener(JSON.stringify(msg)));
+
+                return 2; // sid
+              }
+            },
+
+            unsubscribe() {}
+          }
+        });
+
+        const testStream = new Writable({
+          objectMode: true,
+
+          write(_0, _1, callback) {
+            callback(null);
+          }
+        });
+
+        provider.on('error', err => {
+          assert(err instanceof ProviderError);
+
+          done();
+        });
+
+        provider.pipe(testStream);
+      });
+    });
+  });
+
+  describe('Writable', () => {
+    describe('_write', () => {
+      it('should work', done => {
+        const object     = { a:  1 };
+        const projection = { id: 1 };
+
+        function request(sub, msg, options, next) {
+          strictEqual(sub, subjects.create[0]);
+          strictEqual(msg, JSON.stringify({ object, projection }));
+          deepStrictEqual(options, { max: 1 });
+
+          next(JSON.stringify({
+            result: merge(object, { _id: 1 })
+          }));
+
+          return done();
+        }
+
+        const provider = new Provider({
+          schema: goodSchema,
+
+          transport: {
+            request,
+
+            subscribe() {},
+            unsubscribe() {}
+          }
+        });
+
+        let pushed = false;
+
+        const readStream = new Readable({
+          objectMode: true,
+
+          read() {
+            if (pushed)
+              return this.emit('close');
+
+            pushed = true;
+
+            setImmediate(() => this.push(object));
+          }
+        });
+
+        readStream.pipe(provider);
+      });
+    });
+
+    describe('_writev', () => {
+      it('should work', done => {
+        const objects = [];
+
+        for (let i = 0; i < 20; ++i)
+          objects.push({ a: i });
+
+        let x = 0;
+
+        function request(sub, msg, options, next) {
+          strictEqual(sub, subjects.create[0]);
+          deepStrictEqual(options, { max: 1 });
+
+          strictEqual(msg, JSON.stringify({
+            object: objects[x],
+
+            projection: { id: 1 }
+          }));
+
+          next(JSON.stringify({
+            result: merge(objects[x], { _id: 1 })
+          }));
+
+          if (++x === objects.length)
+            return done();
+        }
+
+        const provider = new Provider({
+          schema: goodSchema,
+
+          transport: {
+            request,
+
+            subscribe() {},
+            unsubscribe() {}
+          }
+        });
+
+        let pushed = false;
+
+        const readStream = new Readable({
+          objectMode: true,
+
+          read() {
+            if (pushed)
+              return this.emit('close');
+
+            pushed = true;
+
+            setImmediate(() => objects.map(this.push.bind(this)));
+          }
+        });
+
+        readStream.pipe(provider);
       });
     });
   });

@@ -28,6 +28,13 @@
         {
             "type": "node",
             "request": "launch",
+            "name": "Launch Streaming Client Example",
+            "program": "${workspaceRoot}/examples/client-nats-streaming/index.js",
+            "outFiles": []
+        },
+        {
+            "type": "node",
+            "request": "launch",
             "name": "Launch Server Example",
             "program": "${workspaceRoot}/examples/server-nats-mongo/index.js",
             "outFiles": []

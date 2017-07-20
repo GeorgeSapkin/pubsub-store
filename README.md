@@ -9,7 +9,7 @@ Pub/sub store and provider that use Mongoose-like schema to separate clients fro
 
 Multiple stores, possibly with different underlying databases, can service requests as long as they expose the same protocol.
 
-Providers can be used to create/update records while others providers subscribe to notifications.
+Providers can be used to create/update entities while others providers subscribe to notifications.
 
 Integrates nicely with [graphql-schema-builder][graphql-schema-builder]. See [Examples](#examples) for GraphQL client example.
 
@@ -41,6 +41,8 @@ npm install --save pubsub-store
 ### Provider
 
 Exposes the underlying store in a convenient format.
+
+Implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duplex) stream to create and receive created entities.
 
 #### Methods
 

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Pub/Sub Store NATS/Mongo server example",
   "main": "index.js",
+  "scripts": {
+    "start": "node ."
+  },
   "keywords": [
     "nats",
     "pubsub"
@@ -10,7 +13,7 @@
   "author": "George Sapkin",
   "license": "MIT",
   "dependencies": {
-    "mongoose": "^4.10.4",
+    "mongoose": "^4.11.3",
     "nats": "^0.7.20"
   }
 }

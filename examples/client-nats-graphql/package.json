@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Pub/Sub Store NATS + GraphQL client example",
   "main": "index.js",
+  "scripts": {
+    "start": "node ."
+  },
   "keywords": [
     "graphql",
     "nats",

@@ -1,7 +1,7 @@
 {
-  "name": "client-nats",
+  "name": "client-nats-streaming",
   "version": "1.0.0",
-  "description": "Pub/Sub Store NATS client example",
+  "description": "Pub/Sub Store NATS streaming client example",
   "main": "index.js",
   "scripts": {
     "start": "node ."
@@ -13,7 +13,6 @@
   "author": "George Sapkin",
   "license": "MIT",
   "dependencies": {
-    "co": "^4.6.0",
     "faker": "^4.1.0",
     "nats": "^0.7.20"
   }
