@@ -11,6 +11,8 @@ Multiple stores, possibly with different underlying databases, can service reque
 
 Providers can be used to create/update entities while others providers subscribe to notifications.
 
+Providers support duplex streaming of entities.
+
 Integrates nicely with [graphql-schema-builder][graphql-schema-builder]. See [Examples](#examples) for GraphQL client example.
 
 _NB:_ Currently assuming providers and underlying DB backends use the same query language.

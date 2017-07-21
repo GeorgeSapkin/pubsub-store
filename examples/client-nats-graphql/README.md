@@ -1,4 +1,4 @@
-# Pub/Sub Store NATS + GraphQL client example `client-nats`
+# Pub/Sub Store NATS + GraphQL client example `client-nats-graphql`
 
 Provider usage example with GraphQL/GraphiQL server using [graphql-schema-builder][graphql-schema-builder] and [express-graphql][express-graphql].
 
