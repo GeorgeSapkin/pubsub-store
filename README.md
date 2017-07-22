@@ -21,9 +21,9 @@ _NB:_ Currently assuming providers and underlying DB backends use the same query
 # Table of contents
 - [Installation](#installation)
 - [API](#api)
-    - [Provider](#provider)
-    - [Store](#store)
-    - [getSubjects](#getsubjects)
+  - [Provider](#provider)
+  - [Store](#store)
+  - [getSubjects](#getsubjects)
 - [Schema](#schema)
 - [Protocol](#protocol)
 - [Examples](#examples)
@@ -44,7 +44,7 @@ npm install --save pubsub-store
 
 Exposes the underlying store in a convenient format.
 
-Implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duplex) stream to create and receive created entities. See [client-nats-streaming](examples/client-nats-streaming) example for details.
+Implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duplex) stream to create and receive created entities. See [Streaming](#streaming) for more details.
 
 #### Methods
 
@@ -52,43 +52,43 @@ Implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duple
 
 * `schema`
 
-    A schema object. See [Schema](#schema) for details.
+  A schema object. See [Schema](#schema) for details.
 
 * `transport`
 
-    A connected transport instance. Must have `request`, `subscribe` and `unsubscribe` methods with following signatures:
+  A connected transport instance. Must have `request`, `subscribe` and `unsubscribe` methods with following signatures:
 
-    ```js
+  ```js
+  const transport = {
+    request(subject, msg, options, cb) {
+      // ...
+    },
 
-    const transport = {
-        request(subject, msg, options, cb) {
-            // ...
-        },
+    subscribe(subject, cb) {
+      // ...
 
-        subscribe(subject, cb) {
-            // ...
+      return subscriptionId;
+    },
 
-            return subscriptionId;
-        },
-
-        unsubscribe(subscriptionId) {
-            // ...
-        }
+    unsubscribe(subscriptionId) {
+      // ...
     }
+  }
+  ```
 
 * `getSubjects`
 
-    Optional function that returns protocol subjects. Default implementation in [subjects.js](src/subjects.js).
+  Optional function that returns protocol subjects. Default implementation in [subjects.js](src/subjects.js).
 
 * `options` _optional_
 
-    * `batchSize`
+  * `batchSize`
 
-        Maximum result batch size. If there are more query results than `batchSize`, results will be loaded in batches of that size.
+    Maximum result batch size. If there are more query results than `batchSize`, results will be loaded in batches of that size.
 
-    * `timeout`
+  * `timeout`
 
-        Query timeout in milliseconds (default: 1000).
+    Query timeout in milliseconds (default: 1000).
 
 `count(conditions)`
 
@@ -96,7 +96,7 @@ Returns a number of entities matching `conditions`.
 
 * `conditions`
 
-    Conditions to count entities based on.
+  Conditions to count entities based on.
 
 `countAll()`
 
@@ -108,11 +108,11 @@ Creates an entity based on `object` and returns projected fields of the new enti
 
 * `object`
 
-    Object with the fields to set.
+  Object with the fields to set.
 
 * `projection`
 
-    Projection of the fields from created entity to be returned.
+  Projection of the fields from created entity to be returned.
 
 `delete(conditions, projection)`
 
@@ -120,11 +120,11 @@ Deletes entities based on `conditions` and returns projected fields of deleted e
 
 * `conditions`
 
-    Conditions to delete entities based on.
+  Conditions to delete entities based on.
 
 * `projection`
 
-    Projection of the fields from deleted entities to be returned.
+  Projection of the fields from deleted entities to be returned.
 
 `deleteById(id, projection)`
 
@@ -132,11 +132,11 @@ Deletes an entity based on `id` and returns projected fields of deleted entity.
 
 * `id`
 
-    ID to delete an entity based on.
+  ID to delete an entity based on.
 
 * `projection`
 
-    Projection of the fields from deleted entity to be returned.
+  Projection of the fields from deleted entity to be returned.
 
 `find(conditions, projection, options)`
 
@@ -144,15 +144,15 @@ Find entities based on `conditions` and returns projected fields of found entiti
 
 * `conditions`
 
-    Conditions to find entities based on.
+  Conditions to find entities based on.
 
 * `projection`
 
-    Projection of the fields from found entities to be returned.
+  Projection of the fields from found entities to be returned.
 
 * `options` _optional_
 
-    Query options (e.g. limit).
+  Query options (e.g. limit).
 
 `findAll(projection, options)`
 
@@ -160,11 +160,11 @@ Find all entities and returns projected fields of found entities.
 
 * `projection`
 
-    Projection of the fields from found entities to be returned.
+  Projection of the fields from found entities to be returned.
 
 * `options` _optional_
 
-    Query options (e.g. limit).
+  Query options (e.g. limit).
 
 `findById(id, projections)`
 
@@ -172,11 +172,11 @@ Find entities based on `id` and returns projected fields of found entity.
 
 * `id`
 
-    ID to find an entity based on.
+  ID to find an entity based on.
 
 * `projection`
 
-    Projection of the fields from found entity to be returned.
+  Projection of the fields from found entity to be returned.
 
 `updateById(id, object, projection)`
 
@@ -184,15 +184,15 @@ Updates an entity based on `id` using `object` and returns projected fields of t
 
 * `id`
 
-    ID to update an entity based on.
+  ID to update an entity based on.
 
 * `object`
 
-    Object that is used to update the matching entity.
+  Object that is used to update the matching entity.
 
 * `projection`
 
-    Projection of the fields from updated entity to be returned.
+  Projection of the fields from updated entity to be returned.
 
 #### Events
 
@@ -207,9 +207,24 @@ Emitted when an entity update event is received from the underlying message bus.
 `create` and `update` event listeners have the following signature:
 
 ```js
-
 function listener(err, query) { /* ... */ }
 ```
+
+#### Streaming
+
+Since `Provider` implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duplex) stream class, entities can be piped to and from a provider instance.
+
+```js
+const provider = new SomeProvider({ /* */ });
+
+// Entities received from the message bus will be piped to someWritableStream
+provider.pipe(someWritableStream);
+
+// Entities from someReadableStream will be piped to the message bus
+someReadableStream.pipe(provider);
+```
+
+See [client-nats-streaming](examples/client-nats-streaming) example for more details.
 
 ### Store
 
@@ -221,45 +236,43 @@ Exposes create, find, update methods over the pub/sub bus to be consumed by prov
 
 * `buildModel`
 
-    A function that builds a model based on a schema. A model must have `create`, `find` and `update` methods that accept protocol arguments.
+  A function that builds a model based on a schema. A model must have `create`, `find` and `update` methods that accept protocol arguments.
 
-    ```js
-    function buildModel(schema) {
-        return {
-            create(object)                        { /* */ },
-            find(conditions, projection, options) { /* */ },
-            update(conditions, object, options)   { /* */ }
-        };
-    }
-    ```
+  ```js
+  function buildModel(schema) {
+    return {
+      create(object)                        { /* */ },
+        find(conditions, projection, options) { /* */ },
+        update(conditions, object, options)   { /* */ }
+    };
+  }
+  ```
 
 * `schema`
 
-    A schema object. See [Schema](#schema) for details.
+  A schema object. See [Schema](#schema) for details.
 
 * `transport`
 
-    A connected transport instance. Must have `subscribe` and `unsubscribe` methods with following signatures:
+  A connected transport instance. Must have `subscribe` and `unsubscribe` methods with following signatures:
 
-    ```js
+  ```js
+  const transport = {
+    subscribe(subject, cb) {
+      // ...
 
-    const transport = {
-        subscribe(subject, cb) {
-            // ...
+      return subscriptionId;
+    },
 
-            return subscriptionId;
-        },
-
-        unsubscribe(subscriptionId) {
-            // ...
-        }
+    unsubscribe(subscriptionId) {
+      // ...
     }
-
-    ```
+  }
+  ```
 
 * `getSubjects`
 
-    Optional function that returns protocol subjects. Default implementation in [subjects.js](src/subjects.js).
+  Optional function that returns protocol subjects. Default implementation in [subjects.js](src/subjects.js).
 
 `open()`
 
@@ -288,24 +301,24 @@ Function that can be passed to both [Provider](#provider) and [Store](#store) co
 
 * `name`
 
-    Schema name.
+  Schema name.
 
 * `prefixes`
 
-    Object with subject prefixes. Defaults to:
+  Object with subject prefixes. Defaults to:
 
-    ```js
-    const Prefixes = {
-        count:  'count',
-        create: 'create',
-        find:   'find',
-        update: 'update'
-    };
-    ```
+  ```js
+  const Prefixes = {
+    count:  'count',
+    create: 'create',
+    find:   'find',
+    update: 'update'
+  };
+  ```
 
 * `suffix` _optional_
 
-    Subject suffix (default: `''`, empty string)
+  Subject suffix (default: `''`, empty string)
 
 ## Protocol
 
@@ -319,7 +332,7 @@ _NB:_ Projections cannot have both included and excluded fields.
 
 ```js
 {
-    result: resultObject // or an array, or a value
+  result: resultObject // or an array, or a value
 }
 ```
 
@@ -327,9 +340,9 @@ _NB:_ Projections cannot have both included and excluded fields.
 
 ```js
 {
-    error: {
-        message: "Error details"
-    }
+  error: {
+    message: "Error details"
+  }
 }
 ```
 
@@ -339,10 +352,10 @@ Count request is published to `count.schema-name` subject by default. Returns th
 
 ```js
 {
-    conditions: {
-        field1: 'value 2',
-        // etc.
-    }
+  conditions: {
+    field1: 'value 2',
+    // etc.
+  }
 }
 ```
 
@@ -352,16 +365,16 @@ Create request is published to `create.schema-name` subject by default. Returns 
 
 ```js
 {
-    object:     {
-        field1: 'value 1',
-        field2: 2
-        // etc.
-    },
-    projection: {
-        field1: 1
-        field2: 1
-        // etc.
-    }
+  object:     {
+    field1: 'value 1',
+    field2: 2
+    // etc.
+  },
+  projection: {
+    field1: 1
+    field2: 1
+    // etc.
+  }
 }
 ```
 
@@ -371,19 +384,19 @@ Find request is published to `find.schema-name` subject by default. Returns a li
 
 ```js
 {
-    conditions: {
-        field1: 'value 2',
-        // etc.
-    },
-    projection: {
-        field1: 1
-        field2: 1
-        // etc.
-    },
-    options: {
-        limit: 1
-        // etc.
-    }
+  conditions: {
+    field1: 'value 2',
+    // etc.
+  },
+  projection: {
+    field1: 1
+    field2: 1
+    // etc.
+  },
+  options: {
+    limit: 1
+    // etc.
+  }
 }
 ```
 
@@ -393,25 +406,25 @@ Update request is published to `update.schema-name` subject by default. Returns 
 
 ```js
 {
-    conditions: {
-        field1: 'value 2',
-        // etc.
-    },
-    object: {
-        $set: {
-            field2: 3
-        }
-        // etc.
-    },
-    projection: {
-        field1: 1
-        field2: 1
-        // etc.
-    },
-    options: {
-        multi: true
-        // etc.
+  conditions: {
+    field1: 'value 2',
+    // etc.
+  },
+  object: {
+    $set: {
+        field2: 3
     }
+    // etc.
+  },
+  projection: {
+    field1: 1
+    field2: 1
+    // etc.
+  },
+  options: {
+    multi: true
+    // etc.
+  }
 }
 ```
 
@@ -423,98 +436,98 @@ Schema format is shared with [graphql-schema-builder][graphql-schema-builder].
 
 ```js
 const schemas = {
-    Asset: {
-        name:        'Asset',
-        description: 'An asset.',
+  Asset: {
+    name:        'Asset',
+    description: 'An asset.',
 
-        fields: ({ Mixed, ObjectId }) => ({
-            customer: {
-                description: 'Customer that this asset belongs to.',
+    fields: ({ Mixed, ObjectId }) => ({
+      customer: {
+        description: 'Customer that this asset belongs to.',
 
-                type:     ObjectId,
-                ref:      'Customer',
-                required: true
-            },
+        type:     ObjectId,
+        ref:      'Customer',
+        required: true
+      },
 
-            parent: {
-                type:     ObjectId,
-                ref:      'Asset',
-                required: false
-            },
+      parent: {
+        type:     ObjectId,
+        ref:      'Asset',
+        required: false
+      },
 
-            name: {
-                type:     String,
-                required: true
-            }
-        }),
+      name: {
+        type:     String,
+        required: true
+      }
+    }),
 
-        dynamicFields: ({ ObjectId }) => ({
-            sensors: {
-                type: [ObjectId],
-                ref:  'Sensor'
-            }
-        })
+    dynamicFields: ({ ObjectId }) => ({
+      sensors: {
+        type: [ObjectId],
+        ref:  'Sensor'
+      }
+    })
+  },
+
+  Customer: {
+    name:        'Customer',
+    description: 'A customer.',
+
+    fields: {
+      name: {
+        description: 'The name of the customer.',
+
+        type:     String,
+        required: true
+      },
+
+      // Will result in subtype
+      metadata: {
+        created: {
+          type:     Date,
+          required: true
+        }
+      }
     },
 
-    Customer: {
-        name:        'Customer',
-        description: 'A customer.',
+    dynamicFields: ({ Mixed, ObjectId }) => ({
+      assets: {
+        type: [ObjectId],
+        ref:  'Asset'
+      }
+    })
+  },
 
-        fields: {
-            name: {
-                description: 'The name of the customer.',
+  Sensor: {
+    name:        'Sensor',
+    description: 'A sensor that must be connected to an asset.',
 
-                type:     String,
-                required: true
-            },
+    fields: ({ Mixed, ObjectId }) => ({
+      externalId: {
+        type:     String,
+        required: false
+      },
 
-            // Will result in subtype
-            metadata: {
-                created: {
-                    type:     Date,
-                    required: true
-                }
-            }
-        },
+      asset: {
+        description: 'An asset that this sensor is connected to.',
 
-        dynamicFields: ({ Mixed, ObjectId }) => ({
-            assets: {
-                type: [ObjectId],
-                ref:  'Asset'
-            }
-        })
-    },
+        type:     ObjectId,
+        ref:      'Asset',
+        required: true
+      },
 
-    Sensor: {
-        name:        'Sensor',
-        description: 'A sensor that must be connected to an asset.',
-
-        fields: ({ Mixed, ObjectId }) => ({
-            externalId: {
-                type:     String,
-                required: false
-            },
-
-            asset: {
-                description: 'An asset that this sensor is connected to.',
-
-                type:     ObjectId,
-                ref:      'Asset',
-                required: true
-            },
-
-            name: {
-                type:     String,
-                required: false
-            }
-        })
-    }
-}
+      name: {
+        type:     String,
+        required: false
+      }
+    })
+  }
+};
 ```
 
 ## Examples
 
-See [examples](examples) for [NATS](https://github.com/nats-io/node-nats), [Mongo/Mongoose](https://github.com/Automattic/mongoose) and [GraphQL](https://github.com/facebook/graphql) examples.
+See [examples](examples) for [NATS](https://github.com/nats-io/node-nats), [Mongo/Mongoose](https://github.com/Automattic/mongoose), [GraphQL](https://github.com/facebook/graphql) and streaming examples.
 
 ## TODO
 
