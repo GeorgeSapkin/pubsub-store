@@ -9,6 +9,9 @@
             "request": "launch",
             "name": "Launch Tests",
             "program": "${workspaceRoot}/node_modules/.bin/jest",
+            "args": [
+                "-i"
+            ],
             "outFiles": []
         },
         {

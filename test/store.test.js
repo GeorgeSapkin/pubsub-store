@@ -15,6 +15,11 @@ const {
 } = require('ramda');
 
 const {
+  spy,
+  stub
+} = require('sinon');
+
+const {
   getSubjects: _getSubjects,
   Store,
   StoreEvents
@@ -115,53 +120,45 @@ describe('Store', () => {
       })));
   });
 
+  function getGoodStore(subscribe = spy()) {
+    return new Store({
+      buildModel,
+
+      schema:    goodSchema,
+      transport: {
+        subscribe,
+
+        publish()     {},
+        unsubscribe() {}
+      }
+    });
+  }
+
   describe('open', () => {
     it('should work', () => {
+      const gen = (function* () {
+        yield subjects.count[0];
+        yield subjects.count[1];
+        yield subjects.create[0];
+        yield subjects.create[1];
+        yield subjects.find[0];
+        yield subjects.find[1];
+        yield subjects.update[0];
+        yield subjects.update[1];
+      })();
+
       let c = 0;
       function subscribe(sub, cb) {
         assert(is(Function, cb));
 
-        switch (c) {
-          case 0:
-            strictEqual(sub, subjects.count[0]);
-            break;
-          case 1:
-            strictEqual(sub, subjects.count[1]);
-            break;
-          case 2:
-            strictEqual(sub, subjects.create[0]);
-            break;
-          case 3:
-            strictEqual(sub, subjects.create[1]);
-            break;
-          case 4:
-            strictEqual(sub, subjects.find[0]);
-            break;
-          case 5:
-            strictEqual(sub, subjects.find[1]);
-            break;
-          case 6:
-            strictEqual(sub, subjects.update[0]);
-            break;
-          case 7:
-            strictEqual(sub, subjects.update[1]);
-            break;
-        }
+        const res = gen.next();
+        if (!res.done)
+          strictEqual(sub, res.value);
 
         return ++c;
       }
 
-      const store = new Store({
-        buildModel,
-
-        schema:    goodSchema,
-        transport: {
-          subscribe,
-
-          publish()     {},
-          unsubscribe() {}
-        }
-      });
+      const store = getGoodStore(subscribe);
 
       store.open();
 
@@ -169,22 +166,7 @@ describe('Store', () => {
     });
 
     it('should throw when already opened', () => {
-      let c = 0;
-      function subscribe(/* sub, cb */) {
-        return ++c;
-      }
-
-      const store = new Store({
-        buildModel,
-
-        schema:    goodSchema,
-        transport: {
-          subscribe,
-
-          publish()     {},
-          unsubscribe() {}
-        }
-      });
+      const store = getGoodStore();
 
       store.open();
 
@@ -194,22 +176,7 @@ describe('Store', () => {
 
   describe('close', () => {
     it('should work', () => {
-      let c = 0;
-      function subscribe(/* sub, cb */) {
-        return ++c;
-      }
-
-      const store = new Store({
-        buildModel,
-
-        schema:    goodSchema,
-        transport: {
-          subscribe,
-
-          publish()     {},
-          unsubscribe() {}
-        }
-      });
+      const store = getGoodStore();
 
       store.open();
       store.close();
@@ -218,22 +185,7 @@ describe('Store', () => {
     });
 
     it('should throw when already closed', () => {
-      let c = 0;
-      function subscribe(/* sub, cb */) {
-        return ++c;
-      }
-
-      const store = new Store({
-        buildModel,
-
-        schema:    goodSchema,
-        transport: {
-          subscribe,
-
-          publish()     {},
-          unsubscribe() {}
-        }
-      });
+      const store = getGoodStore();
 
       store.open();
       store.close();
@@ -288,13 +240,10 @@ describe('Store', () => {
       });
 
       it('with good args', done => {
-        function publish(sub, msg) {
-          strictEqual(sub, 'replyTo');
-          assert(is(String, msg));
-          strictEqual(msg, JSON.stringify(resolved));
-
-          done();
-        }
+        const publish = stub().withArgs(
+          'replyTo',
+          JSON.stringify(resolved)
+        ).callsFake(done);
 
         const store = new Store({
           buildModel: goodBuildModel,
@@ -312,15 +261,12 @@ describe('Store', () => {
       });
 
       it('and return error when model rejects', done => {
-        function publish(sub, msg) {
-          strictEqual(sub, 'replyTo');
-          assert(is(String, msg));
-          strictEqual(msg, JSON.stringify({ error: {
+        const publish = stub().withArgs(
+          'replyTo',
+          JSON.stringify({ error: {
             message: err.message
-          }}));
-
-          done();
-        }
+          }})
+        ).callsFake(done);
 
         const store = new Store({
           buildModel: badBuildModel,

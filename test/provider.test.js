@@ -11,14 +11,16 @@ const {
 
 const {
   complement,
-  curry,
   equals,
   F,
   is,
   isNil,
-  merge,
-  pipe
+  merge
 } = require('ramda');
+
+const {
+  stub
+} = require('sinon');
 
 const {
   Readable,
@@ -83,6 +85,17 @@ const goodProvider = new Provider({
   transport: goodTransport
 });
 
+const $or = [
+  { metadata:           { $eq:     null  } },
+  { 'metadata.deleted': { $eq:     null  } },
+  { 'metadata.deleted': { $exists: false } }
+];
+
+const $currentDate = {
+  'metadata.deleted': true,
+  'metadata.updated': true
+};
+
 const execRejects = rejects(exec);
 const isNot       = complement(is);
 
@@ -90,18 +103,16 @@ describe('batchExec', () => {
   describe('should resolve', () => {
     it('with no elements', () => {
       const result = [];
+      const exec   = stub().withArgs({
+        limit: 2,
+        skip:  0
+      }).resolves(result);
 
-      function exec(options) {
-        deepStrictEqual(options, {
-          limit: 2,
-          skip:  0
-        });
+      return batchExec(exec, 2, { limit: 5 }).then(res => {
+        deepStrictEqual(res, result);
 
-        return Promise.resolve(result);
-      }
-
-      return batchExec(exec, 2, { limit: 5 })
-        .then(res => deepStrictEqual(res, result));
+        assert(exec.calledOnce);
+      });
     });
 
     it('with less elements', () => {
@@ -113,29 +124,23 @@ describe('batchExec', () => {
         d: 7
       }];
 
-      let i = 0;
+      const exec = stub();
 
-      function exec(options) {
-        switch (i++) {
-          case 0:
-            deepStrictEqual(options, {
-              limit: 2,
-              skip:  0
-            });
+      exec.withArgs({
+        limit: 2,
+        skip:  0
+      }).resolves(result.slice(0, 2));
 
-            return Promise.resolve(result.slice(0, 2));
-          case 1:
-            deepStrictEqual(options, {
-              limit: 2,
-              skip:  2
-            });
+      exec.withArgs({
+        limit: 2,
+        skip:  2
+      }).resolves(result.slice(2));
 
-            return Promise.resolve(result.slice(2));
-        }
-      }
+      return batchExec(exec, 2, { limit: 5 }).then(res => {
+        deepStrictEqual(res, result);
 
-      return batchExec(exec, 2, { limit: 5 })
-        .then(res => deepStrictEqual(res, result));
+        assert(exec.calledTwice);
+      });
     });
 
     it('with more elements', () => {
@@ -149,29 +154,23 @@ describe('batchExec', () => {
         e: 11
       }];
 
-      let i = 0;
+      const exec = stub();
 
-      function exec(options) {
-        switch (i++) {
-          case 0:
-            deepStrictEqual(options, {
-              limit: 2,
-              skip:  0
-            });
+      exec.withArgs({
+        limit: 2,
+        skip:  0
+      }).resolves(result.slice(0, 2));
 
-            return Promise.resolve(result.slice(0, 2));
-          case 1:
-            deepStrictEqual(options, {
-              limit: 1,
-              skip:  2
-            });
+      exec.withArgs({
+        limit: 1,
+        skip:  2
+      }).resolves(result.slice(2, 3));
 
-            return Promise.resolve(result.slice(2, 3));
-        }
-      }
+      return batchExec(exec, 2, { limit: 3 }).then(res => {
+        deepStrictEqual(res, result.slice(0, 3));
 
-      return batchExec(exec, 2, { limit: 3 })
-        .then(res => deepStrictEqual(res, result.slice(0, 3)));
+        assert(exec.calledTwice);
+      });
     });
   });
 });
@@ -182,26 +181,30 @@ describe('exec', () => {
       const query  = { a: 1 };
       const result = { b: 1 };
 
-      function request(msg, _, next) {
-        strictEqual(msg, JSON.stringify(query));
-        return next(JSON.stringify({ result }));
-      }
+      const request = stub()
+        .withArgs(JSON.stringify(query))
+        .callsArgWithAsync(2, JSON.stringify({ result }));
 
-      return exec(request, 20, query)
-        .then(res => deepStrictEqual(res, result));
+      return exec(request, 20, query).then(res => {
+        deepStrictEqual(res, result);
+
+        assert(request.calledOnce);
+      });
     });
 
     it('an array', () => {
       const query  = { a: 1 };
       const result = [{ b: 1 }];
 
-      function request(msg, _, next) {
-        strictEqual(msg, JSON.stringify(query));
-        return next(JSON.stringify({ result }));
-      }
+      const request = stub()
+        .withArgs(JSON.stringify(query))
+        .callsArgWithAsync(2, JSON.stringify({ result }));
 
-      return exec(request, 20, query)
-        .then(res => deepStrictEqual(res, result));
+      return exec(request, 20, query).then(res => {
+        deepStrictEqual(res, result);
+
+        assert(request.calledOnce);
+      });
     });
   });
 
@@ -254,13 +257,7 @@ describe('Provider', () => {
       strictEqual(provider._hasMetadata, hasMetadata);
 
       if (hasMetadata)
-        deepStrictEqual(provider._defaultConditions, {
-          $or: [
-            { metadata:           { $eq:     null  } },
-            { 'metadata.deleted': { $eq:     null  } },
-            { 'metadata.deleted': { $exists: false } }
-          ]
-        });
+        deepStrictEqual(provider._defaultConditions, { $or });
       else
         deepStrictEqual(provider._defaultConditions, { });
     }
@@ -291,13 +288,14 @@ describe('Provider', () => {
       const conditions = { b: 2 };
       const result     = 7;
 
-      function request(sub, msg, options, next) {
-        strictEqual(sub, subjects.count[0]);
-        strictEqual(msg, JSON.stringify({ conditions }));
-        deepStrictEqual(options, { max: 1 });
-
-        return next(JSON.stringify({ result }));
-      }
+      const request = stub().withArgs(
+        subjects.count[0],
+        JSON.stringify({ conditions }),
+        { max: 1 }
+      ).callsArgWithAsync(
+        3,
+        JSON.stringify({ result })
+      );
 
       return new Provider({
         schema:    goodSchema,
@@ -307,8 +305,10 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      }).count(conditions)
-        .then(res => deepStrictEqual(res, result));
+      }).count(conditions).then(res => {
+        deepStrictEqual(res, result);
+        assert(request.calledOnce);
+      });
     });
 
     const goodRejects = rejects(goodProvider.count.bind(goodProvider));
@@ -318,15 +318,12 @@ describe('Provider', () => {
 
   describe('countAll', () => {
     it('should resolve', () => {
-      const result = 7;
-
-      function request(sub, msg, options, next) {
-        strictEqual(sub, subjects.count[0]);
-        strictEqual(msg, JSON.stringify({ conditions: {} }));
-        deepStrictEqual(options, { max: 1 });
-
-        return next(JSON.stringify({ result }));
-      }
+      const result  = 7;
+      const request = stub().withArgs(
+        subjects.count[0],
+        JSON.stringify({ conditions: {} }),
+        { max: 1 }
+      ).callsArgWithAsync(3, JSON.stringify({ result }));
 
       return new Provider({
         schema:    goodSchema,
@@ -336,8 +333,10 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      }).countAll()
-        .then(res => deepStrictEqual(res, result));
+      }).countAll().then(res => {
+        deepStrictEqual(res, result);
+        assert(request.calledOnce);
+      });
     });
 
     const goodRejects = rejects(goodProvider.count.bind(goodProvider));
@@ -350,15 +349,14 @@ describe('Provider', () => {
       const object     = { a: 1 };
       const projection = { b: 1 };
 
-      function request(sub, msg, options, next) {
-        strictEqual(sub, subjects.create[0]);
-        strictEqual(msg, JSON.stringify({ object, projection }));
-        deepStrictEqual(options, { max: 1 });
-
-        return next(JSON.stringify({
-          result: merge(object, { _id: 1 })
-        }));
-      }
+      const request = stub().withArgs(
+        subjects.create[0],
+        JSON.stringify({ object, projection }),
+        { max: 1 }
+      ).callsArgWithAsync(
+        3,
+        JSON.stringify({ result: merge(object, { _id: 1 }) })
+      );
 
       return new Provider({
         schema:    goodSchema,
@@ -368,9 +366,10 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      })
-        .create(object, projection)
-        .then(res => deepStrictEqual(res, merge(object, { _id: 1 })));
+      }).create(object, projection).then(res => {
+        deepStrictEqual(res, merge(object, { _id: 1 }));
+        assert(request.calledOnce);
+      });
     });
 
     const goodRejects = rejects(goodProvider.create.bind(goodProvider));
@@ -385,34 +384,22 @@ describe('Provider', () => {
       const conditions = { a: 1 };
       const projection = { b: 1 };
 
-      function request(sub, msg, options, next) {
-        if (sub === subjects.find[0])
-          return next(JSON.stringify({ result: [{ _id: 1 }] }));
-        else if (sub === subjects.update[0]) {
-          strictEqual(msg, JSON.stringify({
-            conditions: {
-              $or: [
-                { metadata:           { $eq:     null  } },
-                { 'metadata.deleted': { $eq:     null  } },
-                { 'metadata.deleted': { $exists: false } }
-              ],
-              a: 1
-            },
-            object: {
-              $currentDate: {
-                'metadata.deleted': true,
-                'metadata.updated': true
-              }
-            },
-            projection
-          }));
-          deepStrictEqual(options, { max: 1 });
+      const request = stub();
 
-          return next(JSON.stringify({ result: [{ c: 1 }]}));
-        }
-        else
-          return assert(false);
-      }
+      request.withArgs(subjects.find[0])
+        .callsArgWithAsync(3, JSON.stringify({ result: [{ _id: 1 }] }));
+
+      request.withArgs(
+        subjects.update[0],
+        JSON.stringify({
+          conditions: {
+            $or,
+            a: 1
+          },
+          object: { $currentDate },
+          projection
+        }, { max: 1 })
+      ).callsArgWithAsync(3, JSON.stringify({ result: [{ c: 1 }] }));
 
       return new Provider({
         schema:    goodSchemaWithMetadata,
@@ -422,9 +409,10 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      })
-        .delete(conditions, projection)
-        .then(curry(deepStrictEqual)([{ _id: 1 }]));
+      }).delete(conditions, projection).then(res => {
+        deepStrictEqual(res, [{ _id: 1 }]);
+        assert(request.calledTwice);
+      });
     });
 
     const badRejects  = rejects(badProvider.delete.bind(badProvider));
@@ -445,34 +433,22 @@ describe('Provider', () => {
       const projection = { b: 1 };
       const result     = { _id: 1 };
 
-      function request(sub, msg, options, next) {
-        if (sub === subjects.find[0])
-          return next(JSON.stringify({ result: [result] }));
-        else if (sub === subjects.update[0]) {
-          strictEqual(msg, JSON.stringify({
-            conditions: {
-              $or: [
-                { metadata:           { $eq:     null  } },
-                { 'metadata.deleted': { $eq:     null  } },
-                { 'metadata.deleted': { $exists: false } }
-              ],
-              _id: 1
-            },
-            object: {
-              $currentDate: {
-                'metadata.deleted': true,
-                'metadata.updated': true
-              }
-            },
-            projection
-          }));
-          deepStrictEqual(options, { max: 1 });
+      const request = stub();
 
-          return next(JSON.stringify({ c: 1 }));
-        }
-        else
-          return assert(false);
-      }
+      request.withArgs(subjects.find[0])
+        .callsArgWithAsync(3, JSON.stringify({ result: [result] }));
+
+      request.withArgs(
+        subjects.update[0],
+        JSON.stringify({
+          conditions: {
+            $or,
+            _id: 1
+          },
+          object: { $currentDate },
+          projection
+        }, { max: 1 })
+      ).callsArgWithAsync(3, JSON.stringify({ result: { c: 1 } }));
 
       return new Provider({
         schema:    goodSchemaWithMetadata,
@@ -482,12 +458,11 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      })
-        .deleteById(1, projection)
-        .then(res => {
-          assert(isNot(Array, res));
-          deepStrictEqual(res, result);
-        });
+      }).deleteById(1, projection).then(res => {
+        assert(isNot(Array, res));
+        deepStrictEqual(res, result);
+        assert(request.calledTwice);
+      });
     });
 
     const badRejects  = rejects(badProvider.deleteById.bind(badProvider));
@@ -506,20 +481,18 @@ describe('Provider', () => {
       const projection = { a: 1 };
       const result     = [{ c: 3 }];
 
-      function request(sub, msg, options, next) {
-        strictEqual(sub, subjects.find[0]);
-        strictEqual(msg, JSON.stringify({
+      const request = stub().withArgs(
+        subjects.find[0],
+        JSON.stringify({
           conditions,
           options: {
             limit: 5000,
             skip:  0
           },
           projection
-        }));
-        deepStrictEqual(options, { max: 1 });
-
-        return next(JSON.stringify({ result }));
-      }
+        }),
+        { max: 1 }
+      ).callsArgWithAsync(3, JSON.stringify({ result }));
 
       return new Provider({
         schema:    goodSchema,
@@ -529,8 +502,10 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      }).find(conditions, projection)
-        .then(res => deepStrictEqual(res, result));
+      }).find(conditions, projection).then(res => {
+        deepStrictEqual(res, result);
+        assert(request.calledOnce);
+      });
     });
 
     const goodRejects = rejects(goodProvider.find.bind(goodProvider));
@@ -546,20 +521,18 @@ describe('Provider', () => {
       const projection = { a: 1 };
       const result     = [{ c: 3 }];
 
-      function request(sub, msg, options, next) {
-        strictEqual(sub, subjects.find[0]);
-        strictEqual(msg, JSON.stringify({
+      const request = stub().withArgs(
+        subjects.find[0],
+        JSON.stringify({
           conditions,
           options: {
             limit: 5000,
             skip:  0
           },
           projection
-        }));
-        deepStrictEqual(options, { max: 1 });
-
-        return next(JSON.stringify({ result }));
-      }
+        }),
+        { max: 1 }
+      ).callsArgWithAsync(3, JSON.stringify({ result }));
 
       return new Provider({
         schema:    goodSchema,
@@ -569,8 +542,10 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      }).findAll(projection)
-        .then(res => deepStrictEqual(res, result));
+      }).findAll(projection).then(res => {
+        deepStrictEqual(res, result);
+        assert(request.calledOnce);
+      });
     });
 
     const goodRejects = rejects(goodProvider.findAll.bind(goodProvider));
@@ -584,17 +559,15 @@ describe('Provider', () => {
       const projection = { a: 1 };
       const result     = { c: 3 };
 
-      function request(sub, msg, options, next) {
-        strictEqual(sub, subjects.find[0]);
-        strictEqual(msg, JSON.stringify({
+      const request = stub().withArgs(
+        subjects.find[0],
+        JSON.stringify({
           conditions,
           projection,
           options: { limit: 1 }
-        }));
-        deepStrictEqual(options, { max: 1 });
-
-        return next(JSON.stringify({ result: [result] }));
-      }
+        }),
+        { max: 1 }
+      ).callsArgWithAsync(3, JSON.stringify({ result: [result] }));
 
       return new Provider({
         schema:    goodSchema,
@@ -604,11 +577,11 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      }).findById(1, projection)
-        .then(res => {
-          assert(isNot(Array, res));
-          deepStrictEqual(res, result);
-        });
+      }).findById(1, projection).then(res => {
+        assert(isNot(Array, res));
+        deepStrictEqual(res, result);
+        assert(request.calledOnce);
+      });
     });
 
     it('should resolve nothing when more than one', () => {
@@ -616,17 +589,15 @@ describe('Provider', () => {
       const projection = { a: 1 };
       const result     = [{ c: 3 }, { c: 4 }];
 
-      function request(sub, msg, options, next) {
-        strictEqual(sub, subjects.find[0]);
-        strictEqual(msg, JSON.stringify({
+      const request = stub().withArgs(
+        subjects.find[0],
+        JSON.stringify({
           conditions,
           projection,
           options: { limit: 1 }
-        }));
-        deepStrictEqual(options, { max: 1 });
-
-        return next(JSON.stringify({ result }));
-      }
+        }),
+        { max: 1 }
+      ).callsArgWithAsync(3, JSON.stringify({ result }));
 
       return new Provider({
         schema:    goodSchema,
@@ -636,8 +607,10 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      }).findById(1, projection)
-        .then(pipe(isNil, assert));
+      }).findById(1, projection).then(res => {
+        assert(isNil(res));
+        assert(request.calledOnce);
+      });
     });
 
     const goodRejects = rejects(goodProvider.findById.bind(goodProvider));
@@ -654,22 +627,19 @@ describe('Provider', () => {
       const resultFind   = { _id: 1 };
       const resultUpdate = { c: 1 };
 
-      function request(sub, msg, options, next) {
-        if (sub === subjects.find[0])
-          return next(JSON.stringify({ result: [resultFind] }));
-        else if (sub === subjects.update[0]) {
-          strictEqual(msg, JSON.stringify({
-            conditions: { _id: 1 },
-            object:     { a:   1 },
-            projection
-          }));
-          deepStrictEqual(options, { max: 1 });
+      const request = stub();
 
-          return next(JSON.stringify({ result: resultUpdate }));
-        }
-        else
-          return assert(false);
-      }
+      request.withArgs(subjects.find[0])
+        .callsArgWithAsync(3, JSON.stringify({ result: [resultFind] }));
+
+      request.withArgs(
+        subjects.update[0],
+        JSON.stringify({
+          conditions: { _id: 1 },
+          object:     { a:   1 },
+          projection
+        }), { max: 1 }
+      ).callsArgWithAsync(3, JSON.stringify({ result: resultUpdate }));
 
       return new Provider({
         schema:    goodSchema,
@@ -679,12 +649,11 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      })
-        .updateById(1, object, projection)
-        .then(res => {
-          assert(isNot(Array, res));
-          deepStrictEqual(res, resultFind);
-        });
+      }).updateById(1, object, projection).then(res => {
+        assert(isNot(Array, res));
+        deepStrictEqual(res, resultFind);
+        assert(request.calledTwice);
+      });
     });
 
     it('should resolve an object and update metadata', () => {
@@ -693,35 +662,25 @@ describe('Provider', () => {
       const resultFind   = { _id: 1 };
       const resultUpdate = { c: 1 };
 
-      function request(sub, msg, options, next) {
-        if (sub === subjects.find[0])
-          return next(JSON.stringify({ result: [resultFind] }));
-        else if (sub === subjects.update[0]) {
-          strictEqual(msg, JSON.stringify({
-            conditions: {
-              $or: [
-                { metadata:           { $eq:     null  } },
-                { 'metadata.deleted': { $eq:     null  } },
-                { 'metadata.deleted': { $exists: false } }
-              ],
-              _id: 1
-            },
-            object: {
-              a: 1,
+      const request = stub();
 
-              $currentDate: {
-                'metadata.updated': true
-              }
-            },
-            projection
-          }));
-          deepStrictEqual(options, { max: 1 });
+      request.withArgs(subjects.find[0])
+        .callsArgWithAsync(3, JSON.stringify({ result: [resultFind] }));
 
-          return next(JSON.stringify({ result: resultUpdate }));
-        }
-        else
-          return assert(false);
-      }
+      request.withArgs(
+        subjects.update[0],
+        JSON.stringify({
+          conditions: { $or, _id: 1 },
+          object: {
+            a: 1,
+
+            $currentDate: {
+              'metadata.updated': true
+            }
+          },
+          projection
+        }), { max: 1 }
+      ).callsArgWithAsync(3, JSON.stringify({ result: resultUpdate }));
 
       return new Provider({
         schema:    goodSchemaWithMetadata,
@@ -731,9 +690,11 @@ describe('Provider', () => {
           subscribe()   {},
           unsubscribe() {}
         }
-      })
-        .updateById(1, object, projection)
-        .then(res => deepStrictEqual(res, resultFind));
+      }).updateById(1, object, projection).then(res => {
+        assert(isNot(Array, res));
+        deepStrictEqual(res, resultFind);
+        assert(request.calledTwice);
+      });
     });
 
     const goodRejects = rejects(goodProvider.updateById.bind(goodProvider));
@@ -1061,56 +1022,49 @@ describe('Provider', () => {
           object: { a: 1 }
         };
 
+        const subscribe = stub()
+          .withArgs(subjects['create'][0])
+          .returns(1)
+          .withArgs(subjects['create'][1])
+          .callsArgWithAsync(1, JSON.stringify(msg))
+          .returns(2);
+
         const provider = new Provider({
           schema: goodSchema,
 
           transport: {
-            request() {},
+            subscribe,
 
-            subscribe(sub, subListener) {
-              if (sub === subjects['create'][0])
-                return 1; // sid
-              else if (sub === subjects['create'][1]) {
-                setImmediate(() => subListener(JSON.stringify(msg)));
-
-                return 2; // sid
-              }
-            },
-
+            request()     {},
             unsubscribe() {}
           }
         });
 
+        const write = stub().withArgs(msg.object).callsFake(done);
+
         const testStream = new Writable({
           objectMode: true,
-
-          write(chunk /*, encoding, callback */) {
-            deepStrictEqual(chunk, msg.object);
-
-            done();
-          }
+          write
         });
 
         provider.pipe(testStream);
       });
 
       it('should emit error on error', done => {
+        const subscribe = stub()
+          .withArgs(subjects['create'][0])
+          .returns(1)
+          .withArgs(subjects['create'][1])
+          .callsArgWithAsync(1, new Error())
+          .returns(2);
+
         const provider = new Provider({
           schema: goodSchema,
 
           transport: {
-            request() {},
+            subscribe,
 
-            subscribe(sub /*, subListener */) {
-              if (sub === subjects['create'][0])
-                return 1; // sid
-              else if (sub === subjects['create'][1]) {
-                setImmediate(() => provider.emit('create', new Error()));
-
-                return 2; // sid
-              }
-            },
-
+            request()     {},
             unsubscribe() {}
           }
         });
@@ -1133,32 +1087,29 @@ describe('Provider', () => {
       it('should emit error without object', done => {
         const msg = {};
 
+        const subscribe = stub()
+          .withArgs(subjects['create'][0])
+          .returns(1)
+          .withArgs(subjects['create'][1])
+          .callsArgWithAsync(1, JSON.stringify(msg))
+          .returns(2);
+
         const provider = new Provider({
           schema: goodSchema,
 
           transport: {
-            request() {},
+            subscribe,
 
-            subscribe(sub, subListener) {
-              if (sub === subjects['create'][0])
-                return 1; // sid
-              else if (sub === subjects['create'][1]) {
-                setImmediate(() => subListener(JSON.stringify(msg)));
-
-                return 2; // sid
-              }
-            },
-
+            request()     {},
             unsubscribe() {}
           }
         });
 
+        const write = stub().callsArgAsync(2);
+
         const testStream = new Writable({
           objectMode: true,
-
-          write(_0, _1, callback) {
-            callback(null);
-          }
+          write
         });
 
         provider.on('error', err => {
@@ -1178,17 +1129,13 @@ describe('Provider', () => {
         const object     = { a:  1 };
         const projection = { id: 1 };
 
-        function request(sub, msg, options, next) {
-          strictEqual(sub, subjects.create[0]);
-          strictEqual(msg, JSON.stringify({ object, projection }));
-          deepStrictEqual(options, { max: 1 });
-
-          next(JSON.stringify({
-            result: merge(object, { _id: 1 })
-          }));
-
-          return done();
-        }
+        const request = stub().withArgs(
+          subjects.create[0],
+          JSON.stringify({ object, projection }),
+          { max: 1 }
+        ).callsArgWithAsync(3, JSON.stringify({
+          result: merge(object, { _id: 1 })
+        })).callsFake(done);
 
         const provider = new Provider({
           schema: goodSchema,
@@ -1222,28 +1169,30 @@ describe('Provider', () => {
 
     describe('_writev', () => {
       it('should work', done => {
-        const objects = [];
+        function* objGen() {
+          for (let i = 0; i < 20; ++i)
+            yield { a: i };
+        }
 
-        for (let i = 0; i < 20; ++i)
-          objects.push({ a: i });
-
-        let x = 0;
+        const gen = objGen();
+        let res   = gen.next();
 
         function request(sub, msg, options, next) {
           strictEqual(sub, subjects.create[0]);
           deepStrictEqual(options, { max: 1 });
 
           strictEqual(msg, JSON.stringify({
-            object: objects[x],
+            object: res.value,
 
             projection: { id: 1 }
           }));
 
           next(JSON.stringify({
-            result: merge(objects[x], { _id: 1 })
+            result: merge(res.value, { _id: 1 })
           }));
 
-          if (++x === objects.length)
+          res = gen.next();
+          if (res.done)
             return done();
         }
 
@@ -1269,7 +1218,10 @@ describe('Provider', () => {
 
             pushed = true;
 
-            setImmediate(() => objects.map(this.push.bind(this)));
+            setImmediate(() => {
+              for (let res of objGen())
+                this.push(res);
+            });
           }
         });
 

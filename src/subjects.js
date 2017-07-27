@@ -14,24 +14,24 @@ function getSubjects(name, { prefixes = Prefixes, suffix = '' } = {}) {
     ? `.${suffix}`
     : '';
 
-  return {
-    count: [
+  return Object.freeze({
+    count: Object.freeze([
       `${prefixes.count}.${_name}${_suffix}`,
       `${prefixes.count}.${_name}${_suffix}.>`
-    ],
-    create: [
+    ]),
+    create: Object.freeze([
       `${prefixes.create}.${_name}${_suffix}`,
       `${prefixes.create}.${_name}${_suffix}.>`
-    ],
-    find: [
+    ]),
+    find: Object.freeze([
       `${prefixes.find}.${_name}${_suffix}`,
       `${prefixes.find}.${_name}${_suffix}.>`
-    ],
-    update: [
+    ]),
+    update: Object.freeze([
       `${prefixes.update}.${_name}${_suffix}`,
       `${prefixes.update}.${_name}${_suffix}.>`
-    ]
-  };
+    ])
+  });
 }
 
 module.exports = {
