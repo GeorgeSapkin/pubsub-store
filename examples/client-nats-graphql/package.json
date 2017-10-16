@@ -14,11 +14,11 @@
   "author": "George Sapkin",
   "license": "MIT",
   "dependencies": {
-    "cors": "^2.8.3",
-    "express": "^4.15.3",
-    "express-graphql": "^0.6.6",
-    "graphql": "^0.10.1",
-    "graphql-schema-builder": "^0.4.1",
+    "cors": "^2.8.4",
+    "express": "^4.15.4",
+    "express-graphql": "^0.6.7",
+    "graphql": "^0.11.7",
+    "graphql-schema-builder": "^0.4.2",
     "nats": "^0.7.20",
     "server-destroy": "^1.0.1"
   }

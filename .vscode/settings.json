@@ -4,5 +4,9 @@
     "eslint.autoFixOnSave": true,
     "files.exclude": {
         "**/.git": true
+    },
+    "search.exclude": {
+        "**/coverage": true,
+        "**/node_modules": true
     }
 }

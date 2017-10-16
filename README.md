@@ -19,6 +19,7 @@ _NB:_ Currently assuming providers and underlying DB backends use the same query
 
 <!-- starttoc -->
 # Table of contents
+- [Requirements](#requirements)
 - [Installation](#installation)
 - [API](#api)
   - [Provider](#provider)
@@ -32,7 +33,17 @@ _NB:_ Currently assuming providers and underlying DB backends use the same query
 
 <!-- endtoc -->
 
+## Requirements
+
+Library requires > Node 8.x with native async/await support.
+
 ## Installation
+
+```bash
+yarn add pubsub-store
+```
+
+or
 
 ```bash
 npm install --save pubsub-store
@@ -536,6 +547,7 @@ See [examples](examples) for [NATS](https://github.com/nats-io/node-nats), [Mong
 * In-code documentation
 * Implement bulk create/update
 * Implement deleting as opposed to marking as deleted
+* Implement aggregate
 
 ## License
 

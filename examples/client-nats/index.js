@@ -1,6 +1,5 @@
 'use strict';
 
-const co    = require('co');
 const faker = require('faker');
 const nats  = require('nats');
 
@@ -21,7 +20,7 @@ const CONNECT   = 'connect';
 const ERROR     = 'error';
 const RECONNECT = 'reconnect';
 
-function onTransportConnected(transport) {
+async function onTransportConnected(transport) {
   logger.log('Connected to broker');
 
   process.on(SIGINT,  () => transport.close());
@@ -37,10 +36,8 @@ function onTransportConnected(transport) {
     }
   });
 
-  /*
-     Create and update events come from the bus, so not necessarily current
-     provider.
-  */
+  // Create and update events come from the bus, so not necessarily current
+  // provider.
   userProvider.on('create', (err, query) => logger.log(
     'Create event', err ? '(error)' : '', query)
   );
@@ -54,33 +51,31 @@ function onTransportConnected(transport) {
     metadata: 1
   };
 
-  co(function* () {
-    const name = faker.name.findName();
+  const name = faker.name.findName();
 
-    const createdUser = yield userProvider.create({ name }, projection);
-    logger.log('Created user', createdUser);
+  const createdUser = await userProvider.create({ name }, projection);
+  logger.log('Created user', createdUser);
 
-    const usersAfterCreate = yield userProvider.findAll(projection);
-    logger.log('All users after create', usersAfterCreate);
+  const usersAfterCreate = await userProvider.findAll(projection);
+  logger.log('All users after create', usersAfterCreate);
 
-    const newName = faker.name.findName();
+  const newName = faker.name.findName();
 
-    const updatedUser = yield userProvider.updateById(
-      createdUser._id, { $set: { name: newName } }, projection);
-    logger.log('Updated user', updatedUser);
+  const updatedUser = await userProvider.updateById(
+    createdUser._id, { $set: { name: newName } }, projection);
+  logger.log('Updated user', updatedUser);
 
-    const count = yield userProvider.countAll();
-    logger.log('Number of users', count);
+  const count = await userProvider.countAll();
+  logger.log('Number of users', count);
 
-    const deletedUser = yield userProvider.deleteById(
-      createdUser._id, projection);
-    logger.log('Deleted user', deletedUser);
+  const deletedUser = await userProvider.deleteById(
+    createdUser._id, projection);
+  logger.log('Deleted user', deletedUser);
 
-    const usersAfterDelete = yield userProvider.findAll(projection);
-    logger.log('All users after delete', usersAfterDelete);
+  const usersAfterDelete = await userProvider.findAll(projection);
+  logger.log('All users after delete', usersAfterDelete);
 
-    transport.close();
-  });
+  transport.close();
 }
 
 {

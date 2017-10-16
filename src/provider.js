@@ -1,11 +1,6 @@
 'use strict';
 
 const {
-  co,
-  wrap
-} = require('co');
-
-const {
   ok: assert
 } = require('assert');
 
@@ -86,12 +81,12 @@ const exec = curry((request, timeout, query) => new Promise(
   )
 ));
 
-const batchExec = wrap(function* (exec, batchSize, options) {
+async function batchExec(exec, batchSize, options) {
   const limit  = options.limit || batchSize;
   const result = [];
 
   for (let skip = 0, left = limit; left > 0; ++skip) {
-    const batch = yield exec(merge(options, {
+    const batch = await exec(merge(options, {
       limit: min(left, batchSize),
       skip:  batchSize * skip
     }));
@@ -104,7 +99,7 @@ const batchExec = wrap(function* (exec, batchSize, options) {
   }
 
   return result;
-});
+}
 
 const processEvent = emit => pipe(
   tryCatch(JSON.parse, identity),
@@ -136,7 +131,7 @@ class Provider extends Duplex {
 
     options: {
       batchSize = 5000,
-      timeout    = 1000
+      timeout   = 1000
     } = {}
   }) {
     super({
@@ -439,9 +434,8 @@ class Provider extends Duplex {
 
     const create = this.create.bind(this);
 
-    co(function* () {
-      return yield chunks.map(({ chunk }) => create(chunk, { id: 1 }));
-    }).then(resolve, reject);
+    Promise.all(chunks.map(({ chunk }) => create(chunk, { id: 1 })))
+      .then(resolve, reject);
   }
 }
 

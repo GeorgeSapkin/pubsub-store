@@ -1040,11 +1040,11 @@ describe('Provider', () => {
           }
         });
 
-        const write = stub().withArgs(msg.object).callsFake(done);
-
         const testStream = new Writable({
           objectMode: true,
-          write
+
+          // NB: Don't pass arguments to `done`
+          write: stub().withArgs(msg.object).callsFake(() => done())
         });
 
         provider.pipe(testStream);
@@ -1135,7 +1135,8 @@ describe('Provider', () => {
           { max: 1 }
         ).callsArgWithAsync(3, JSON.stringify({
           result: merge(object, { _id: 1 })
-        })).callsFake(done);
+        // NB: Don't pass arguments to `done`
+        })).callsFake(() => done());
 
         const provider = new Provider({
           schema: goodSchema,

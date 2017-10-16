@@ -243,7 +243,8 @@ describe('Store', () => {
         const publish = stub().withArgs(
           'replyTo',
           JSON.stringify(resolved)
-        ).callsFake(done);
+        // NB: Don't pass arguments to `done`
+        ).callsFake(() => done());
 
         const store = new Store({
           buildModel: goodBuildModel,
@@ -266,7 +267,8 @@ describe('Store', () => {
           JSON.stringify({ error: {
             message: err.message
           }})
-        ).callsFake(done);
+        // NB: Don't pass arguments to `done`
+        ).callsFake(() => done());
 
         const store = new Store({
           buildModel: badBuildModel,

@@ -51,7 +51,7 @@ function onTransportConnected(transport) {
     }
   });
 
-  // Genarates 3 users
+  // Generates 3 users
   const userGenerator = (function* nextUser() {
     yield { name: faker.name.findName() };
     yield { name: faker.name.findName() };
