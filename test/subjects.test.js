@@ -1,10 +1,6 @@
 'use strict';
 
 const {
-  deepStrictEqual
-} = require('assert');
-
-const {
   getSubjects
 } = require('../');
 
@@ -12,7 +8,7 @@ describe('getSubjects', () => {
   it('should work with default args', () => {
     const subjects = getSubjects('schema');
 
-    deepStrictEqual(subjects, {
+    expect(subjects).toMatchObject({
       count:  ['count.schema',  'count.schema.>'],
       create: ['create.schema', 'create.schema.>'],
       find:   ['find.schema',   'find.schema.>'],
@@ -30,7 +26,7 @@ describe('getSubjects', () => {
       }
     });
 
-    deepStrictEqual(subjects, {
+    expect(subjects).toMatchObject({
       count:  ['a.schema', 'a.schema.>'],
       create: ['b.schema', 'b.schema.>'],
       find:   ['c.schema', 'c.schema.>'],
@@ -41,7 +37,7 @@ describe('getSubjects', () => {
   it('should work with custom suffix', () => {
     const subjects = getSubjects('schema', { suffix: 'customer' });
 
-    deepStrictEqual(subjects, {
+    expect(subjects).toMatchObject({
       count:  ['count.schema.customer',  'count.schema.customer.>'],
       create: ['create.schema.customer', 'create.schema.customer.>'],
       find:   ['find.schema.customer',   'find.schema.customer.>'],
@@ -60,7 +56,7 @@ describe('getSubjects', () => {
       suffix: 'device-type'
     });
 
-    deepStrictEqual(subjects, {
+    expect(subjects).toMatchObject({
       count:  ['c.schema.device-type', 'c.schema.device-type.>'],
       create: ['d.schema.device-type', 'd.schema.device-type.>'],
       find:   ['e.schema.device-type', 'e.schema.device-type.>'],

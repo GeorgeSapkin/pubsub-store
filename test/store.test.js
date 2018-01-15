@@ -1,16 +1,8 @@
 'use strict';
 
 const {
-  ok: assert,
-  deepStrictEqual,
-  strictEqual,
-  throws
-} = require('assert');
-
-const {
   bind,
   F,
-  is,
   partial
 } = require('ramda');
 
@@ -63,17 +55,17 @@ describe('Store', () => {
         transport: goodTransport
       });
 
-      assert(is(Function, store._subscribe));
-      assert(is(Function, store._unsubscribe));
+      expect(store._subscribe).toBeInstanceOf(Function);
+      expect(store._unsubscribe).toBeInstanceOf(Function);
 
-      assert(is(Function, store._onCount));
-      assert(is(Function, store._onCreate));
-      assert(is(Function, store._onFind));
-      assert(is(Function, store._onUpdate));
+      expect(store._onCount).toBeInstanceOf(Function);
+      expect(store._onCreate).toBeInstanceOf(Function);
+      expect(store._onFind).toBeInstanceOf(Function);
+      expect(store._onUpdate).toBeInstanceOf(Function);
 
-      deepStrictEqual(store._subjects, getSubjects(goodSchema.name));
+      expect(store._subjects).toMatchObject(getSubjects(goodSchema.name));
 
-      assert(is(Array, store._sids));
+      expect(store._sids).toBeInstanceOf(Array);
     }
 
     it('should work with good args', () => {
@@ -89,35 +81,37 @@ describe('Store', () => {
       }));
     });
 
-    it('should throw without any args', () => throws(() => new Store()));
+    it('should throw without any args',
+      () => expect(() => new Store()).toThrow()
+    );
 
     it('should throw without buildModel',
-      () => throws(() => new Store({})));
+      () => expect(() => new Store({})).toThrow());
 
     it('should throw with bad buildModel',
-      () => throws(() => new Store({ buildModel: 1 })));
+      () => expect(() => new Store({ buildModel: 1 })).toThrow());
 
     it('should throw without schema',
-      () => throws(() => new Store({ buildModel })));
+      () => expect(() => new Store({ buildModel })).toThrow());
 
     it('should throw with bad schema',
-      () => throws(() => new Store({
+      () => expect(() => new Store({
         buildModel,
         schema: {}
-      })));
+      })).toThrow());
 
     it('should throw without transport',
-      () => throws(() => new Store({
+      () => expect(() => new Store({
         buildModel,
         schema: goodSchema
-      })));
+      })).toThrow());
 
     it('should throw with bad transport',
-      () => throws(() => new Store({
+      () => expect(() => new Store({
         buildModel,
         schema:    goodSchema,
         transport: {}
-      })));
+      })).toThrow());
   });
 
   function getGoodStore(subscribe = spy()) {
@@ -149,11 +143,11 @@ describe('Store', () => {
 
       let c = 0;
       function subscribe(sub, cb) {
-        assert(is(Function, cb));
+        expect(cb).toBeInstanceOf(Function);
 
         const res = gen.next();
         if (!res.done)
-          strictEqual(sub, res.value);
+          expect(sub).toBe(res.value);
 
         return ++c;
       }
@@ -162,7 +156,7 @@ describe('Store', () => {
 
       store.open();
 
-      deepStrictEqual(store._sids, [1, 2, 3, 4, 5, 6, 7, 8]);
+      expect(store._sids).toMatchObject([1, 2, 3, 4, 5, 6, 7, 8]);
     });
 
     it('should throw when already opened', () => {
@@ -170,7 +164,7 @@ describe('Store', () => {
 
       store.open();
 
-      throws(() => store.open());
+      expect(() => store.open()).toThrow();
     });
   });
 
@@ -181,7 +175,7 @@ describe('Store', () => {
       store.open();
       store.close();
 
-      deepStrictEqual(store._sids, []);
+      expect(store._sids).toMatchObject([]);
     });
 
     it('should throw when already closed', () => {
@@ -190,7 +184,7 @@ describe('Store', () => {
       store.open();
       store.close();
 
-      throws(() => store.close());
+      expect(() => store.close()).toThrow();
     });
   });
 

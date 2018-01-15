@@ -217,6 +217,10 @@ Emitted when an entity update event is received from the underlying message bus.
 
 `create` and `update` event listeners have the following signature:
 
+`stream-error`
+
+Emitted from either `Readable` or `Writable` side of the `Duplex` stream instead of an `error`. In case of `Writable` this prevents any upstreams from unpiping.
+
 ```js
 function listener(err, query) { /* ... */ }
 ```
@@ -253,8 +257,8 @@ Exposes create, find, update methods over the pub/sub bus to be consumed by prov
   function buildModel(schema) {
     return {
       create(object)                        { /* */ },
-        find(conditions, projection, options) { /* */ },
-        update(conditions, object, options)   { /* */ }
+      find(conditions, projection, options) { /* */ },
+      update(conditions, object, options)   { /* */ }
     };
   }
   ```
@@ -302,7 +306,6 @@ Events are emitted on corresponding request errors.
 * `find-error`
 
 * `update-error`
-
 
 ### `getSubjects`
 

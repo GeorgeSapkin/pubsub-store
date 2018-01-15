@@ -1,20 +1,8 @@
 'use strict';
 
 const {
-  ok: assert,
-  deepStrictEqual,
-  equal,
-  notEqual,
-  strictEqual,
-  throws
-} = require('assert');
-
-const {
-  complement,
   equals,
   F,
-  is,
-  isNil,
   merge
 } = require('ramda');
 
@@ -28,8 +16,7 @@ const {
 } = require('stream');
 
 const {
-  Provider,
-  ProviderError
+  Provider
 } = require('../');
 
 const {
@@ -97,7 +84,6 @@ const $currentDate = {
 };
 
 const execRejects = rejects(exec);
-const isNot       = complement(is);
 
 describe('batchExec', () => {
   describe('should resolve', () => {
@@ -109,9 +95,8 @@ describe('batchExec', () => {
       }).resolves(result);
 
       return batchExec(exec, 2, { limit: 5 }).then(res => {
-        deepStrictEqual(res, result);
-
-        assert(exec.calledOnce);
+        expect(res).toMatchObject(result);
+        expect(exec.calledOnce).toBeTruthy();
       });
     });
 
@@ -137,9 +122,8 @@ describe('batchExec', () => {
       }).resolves(result.slice(2));
 
       return batchExec(exec, 2, { limit: 5 }).then(res => {
-        deepStrictEqual(res, result);
-
-        assert(exec.calledTwice);
+        expect(res).toMatchObject(result);
+        expect(exec.calledTwice).toBeTruthy();
       });
     });
 
@@ -167,9 +151,8 @@ describe('batchExec', () => {
       }).resolves(result.slice(2, 3));
 
       return batchExec(exec, 2, { limit: 3 }).then(res => {
-        deepStrictEqual(res, result.slice(0, 3));
-
-        assert(exec.calledTwice);
+        expect(res).toMatchObject(result.slice(0, 3));
+        expect(exec.calledTwice).toBeTruthy();
       });
     });
   });
@@ -186,9 +169,9 @@ describe('exec', () => {
         .callsArgWithAsync(2, JSON.stringify({ result }));
 
       return exec(request, 20, query).then(res => {
-        deepStrictEqual(res, result);
+        expect(res).toMatchObject(result);
 
-        assert(request.calledOnce);
+        expect(request.calledOnce).toBeTruthy();
       });
     });
 
@@ -201,9 +184,9 @@ describe('exec', () => {
         .callsArgWithAsync(2, JSON.stringify({ result }));
 
       return exec(request, 20, query).then(res => {
-        deepStrictEqual(res, result);
+        expect(res).toMatchObject(result);
 
-        assert(request.calledOnce);
+        expect(request.calledOnce).toBeTruthy();
       });
     });
   });
@@ -235,31 +218,31 @@ describe('Provider', () => {
         transport: goodTransport
       });
 
-      deepStrictEqual(provider._schema,    schema);
-      deepStrictEqual(provider._transport, goodTransport);
+      expect(provider._schema).toMatchObject(schema);
+      expect(provider._transport).toMatchObject(goodTransport);
 
-      assert(is(Function, provider._subscribe));
-      assert(is(Function, provider._unsubscribe));
+      expect(provider._subscribe).toBeInstanceOf(Function);
+      expect(provider._unsubscribe).toBeInstanceOf(Function);
 
-      deepStrictEqual(provider._subjects, getSubjects(schema.name));
+      expect(provider._subjects).toMatchObject(getSubjects(schema.name));
 
-      assert(is(Function, provider._count));
-      assert(is(Function, provider._create));
-      assert(is(Function, provider._find));
-      assert(is(Function, provider._update));
+      expect(provider._count).toBeInstanceOf(Function);
+      expect(provider._create).toBeInstanceOf(Function);
+      expect(provider._find).toBeInstanceOf(Function);
+      expect(provider._update).toBeInstanceOf(Function);
 
-      notEqual(provider._listeners, null);
-      assert(is(Map, provider._listeners.create));
-      assert(is(Map, provider._listeners.update));
+      expect(provider._listeners).toBeDefined();
+      expect(provider._listeners.create).toBeInstanceOf(Map);
+      expect(provider._listeners.update).toBeInstanceOf(Map);
 
-      assert(is(Function, provider._mergeConditions));
+      expect(provider._mergeConditions).toBeInstanceOf(Function);
 
-      strictEqual(provider._hasMetadata, hasMetadata);
+      expect(provider._hasMetadata).toBe(hasMetadata);
 
       if (hasMetadata)
-        deepStrictEqual(provider._defaultConditions, { $or });
+        expect(provider._defaultConditions).toMatchObject({ $or });
       else
-        deepStrictEqual(provider._defaultConditions, { });
+        expect(provider._defaultConditions).toMatchObject({});
     }
 
     it('should work with good args with function fields without metadata',
@@ -276,11 +259,13 @@ describe('Provider', () => {
         update: ['h.>']
       })));
 
-    it('should throw without any args', () => throws(() => new Provider()));
+    it('should throw without any args',
+      () => expect(() => new Provider()).toThrow()
+    );
 
-    it('should throw without transport', () => throws(() => new Provider({
+    it('should throw without transport', () => expect(() => new Provider({
       schema: goodSchema
-    })));
+    })).toThrow());
   });
 
   describe('count', () => {
@@ -306,8 +291,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).count(conditions).then(res => {
-        deepStrictEqual(res, result);
-        assert(request.calledOnce);
+        expect(res).toBe(result);
+        expect(request.calledOnce).toBeTruthy();
       });
     });
 
@@ -334,8 +319,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).countAll().then(res => {
-        deepStrictEqual(res, result);
-        assert(request.calledOnce);
+        expect(res).toBe(result);
+        expect(request.calledOnce).toBeTruthy();
       });
     });
 
@@ -367,8 +352,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).create(object, projection).then(res => {
-        deepStrictEqual(res, merge(object, { _id: 1 }));
-        assert(request.calledOnce);
+        expect(res).toMatchObject(merge(object, { _id: 1 }));
+        expect(request.calledOnce).toBeTruthy();
       });
     });
 
@@ -410,8 +395,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).delete(conditions, projection).then(res => {
-        deepStrictEqual(res, [{ _id: 1 }]);
-        assert(request.calledTwice);
+        expect(res).toMatchObject([{ _id: 1 }]);
+        expect(request.calledTwice).toBeTruthy();
       });
     });
 
@@ -459,9 +444,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).deleteById(1, projection).then(res => {
-        assert(isNot(Array, res));
-        deepStrictEqual(res, result);
-        assert(request.calledTwice);
+        expect(res).toMatchObject(result);
+        expect(request.calledTwice).toBeTruthy();
       });
     });
 
@@ -503,8 +487,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).find(conditions, projection).then(res => {
-        deepStrictEqual(res, result);
-        assert(request.calledOnce);
+        expect(res).toMatchObject(result);
+        expect(request.calledOnce).toBeTruthy();
       });
     });
 
@@ -543,8 +527,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).findAll(projection).then(res => {
-        deepStrictEqual(res, result);
-        assert(request.calledOnce);
+        expect(res).toMatchObject(result);
+        expect(request.calledOnce).toBeTruthy();
       });
     });
 
@@ -578,9 +562,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).findById(1, projection).then(res => {
-        assert(isNot(Array, res));
-        deepStrictEqual(res, result);
-        assert(request.calledOnce);
+        expect(res).toMatchObject(result);
+        expect(request.calledOnce).toBeTruthy();
       });
     });
 
@@ -608,8 +591,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).findById(1, projection).then(res => {
-        assert(isNil(res));
-        assert(request.calledOnce);
+        expect(res).toBeNull();
+        expect(request.calledOnce).toBeTruthy();
       });
     });
 
@@ -650,9 +633,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).updateById(1, object, projection).then(res => {
-        assert(isNot(Array, res));
-        deepStrictEqual(res, resultFind);
-        assert(request.calledTwice);
+        expect(res).toMatchObject(resultFind);
+        expect(request.calledTwice).toBeTruthy();
       });
     });
 
@@ -691,9 +673,8 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).updateById(1, object, projection).then(res => {
-        assert(isNot(Array, res));
-        deepStrictEqual(res, resultFind);
-        assert(request.calledTwice);
+        expect(res).toMatchObject(resultFind);
+        expect(request.calledTwice).toBeTruthy();
       });
     });
 
@@ -711,12 +692,12 @@ describe('Provider', () => {
     function testOnEvent({ onceFn, onFn }, eventName, once, error, done) {
       function listener(err, query) {
         if (error) {
-          assert(is(Error), err);
-          equal(query, null);
+          expect(err).toBeInstanceOf(Error);
+          expect(query).toBeUndefined();
         }
         else {
-          equal(err, null);
-          deepStrictEqual(query, { a: 1 });
+          expect(err).toBeNull();
+          expect(query).toMatchObject({ a: 1 });
         }
 
         if (once)
@@ -733,10 +714,9 @@ describe('Provider', () => {
             return 1; // sid
           else if (sub === subjects[eventName][1]) {
             setImmediate(() => {
-              deepStrictEqual(
-                provider._listeners[eventName].get(listener),
-                [1, 2]
-              );
+              expect(
+                provider._listeners[eventName].get(listener)
+              ).toMatchObject([1, 2]);
 
               if (error)
                 subListener('{');
@@ -749,7 +729,7 @@ describe('Provider', () => {
         },
 
         unsubscribe(sid) {
-          assert(sid === 1 || sid === 2);
+          expect(sid === 1 || sid === 2).toBeTruthy();
         }
       };
 
@@ -845,7 +825,7 @@ describe('Provider', () => {
               return sc++;
             },
             unsubscribe(sid) {
-              strictEqual(sid, uc++);
+              expect(sid).toBe(uc++);
             }
           }
         });
@@ -874,7 +854,7 @@ describe('Provider', () => {
               return sc++;
             },
             unsubscribe(sid) {
-              strictEqual(sid, uc++);
+              expect(sid).toBe(uc++);
             }
           }
         });
@@ -903,7 +883,7 @@ describe('Provider', () => {
               return sc++;
             },
             unsubscribe(sid) {
-              strictEqual(sid, uc++);
+              expect(sid).toBe(uc++);
             }
           }
         });
@@ -932,7 +912,7 @@ describe('Provider', () => {
               return sc++;
             },
             unsubscribe(sid) {
-              strictEqual(sid, uc++);
+              expect(sid).toBe(uc++);
             }
           }
         });
@@ -975,7 +955,7 @@ describe('Provider', () => {
               return 1;
             },
             unsubscribe(sid) {
-              strictEqual(sid, 1);
+              expect(sid).toBe(1);
             }
           }
         });
@@ -999,7 +979,7 @@ describe('Provider', () => {
               return 1;
             },
             unsubscribe(sid) {
-              strictEqual(sid, 1);
+              expect(sid).toBe(1);
             }
           }
         });
@@ -1075,9 +1055,8 @@ describe('Provider', () => {
           write() {}
         });
 
-        provider.on('error', err => {
-          assert(err instanceof Error);
-
+        provider.on('stream-error', err => {
+          expect(err).toBeInstanceOf(Error);
           done();
         });
 
@@ -1112,8 +1091,8 @@ describe('Provider', () => {
           write
         });
 
-        provider.on('error', err => {
-          assert(err instanceof ProviderError);
+        provider.on('stream-error', err => {
+          expect(err).toBeInstanceOf(Error);
 
           done();
         });
@@ -1164,37 +1143,40 @@ describe('Provider', () => {
           }
         });
 
+        // TODO: test multiple errors
+
         readStream.pipe(provider);
       });
     });
 
     describe('_writev', () => {
-      it('should work', done => {
-        function* objGen() {
-          for (let i = 0; i < 20; ++i)
-            yield { a: i };
-        }
-
-        const gen = objGen();
-        let res   = gen.next();
+      function test(gen, done) {
+        let dataEmitted   = 0;
+        let errorsEmitted = 0;
 
         function request(sub, msg, options, next) {
-          strictEqual(sub, subjects.create[0]);
-          deepStrictEqual(options, { max: 1 });
+          expect(sub).toBe(subjects.create[0]);
+          expect(options).toMatchObject({ max: 1 });
 
-          strictEqual(msg, JSON.stringify({
-            object: res.value,
+          const parsed = JSON.parse(msg);
 
-            projection: { id: 1 }
-          }));
+          if (parsed.object.a != null) {
+            ++dataEmitted;
 
-          next(JSON.stringify({
-            result: merge(res.value, { _id: 1 })
-          }));
+            process.nextTick(() => next(JSON.stringify({
+              _id:    1,
+              result: parsed.obj
+            })));
 
-          res = gen.next();
-          if (res.done)
-            return done();
+            if (dataEmitted === 4 && errorsEmitted === 2)
+              done();
+          }
+          else
+            process.nextTick(() => next(JSON.stringify({
+              error: {
+                message: 'Not OK'
+              }
+            })));
         }
 
         const provider = new Provider({
@@ -1220,13 +1202,53 @@ describe('Provider', () => {
             pushed = true;
 
             setImmediate(() => {
-              for (let res of objGen())
+              for (const res of gen())
                 this.push(res);
             });
           }
         });
 
+        provider.on('stream-error', () => {
+          ++errorsEmitted;
+
+          if (dataEmitted === 4 && errorsEmitted === 2)
+            done();
+        });
+
         readStream.pipe(provider);
+      }
+
+      it('should work with some errors', done => {
+        test(function* objGen() {
+          yield { a:   0 };
+          yield { a:   1 };
+          yield { err: 0 };
+          yield { a:   2 };
+          yield { err: 1 };
+          yield { a:   3 };
+        }, done);
+      });
+
+      it('should work with first errors', done => {
+        test(function* objGen() {
+          yield { err: 10 };
+          yield { a:   10 };
+          yield { a:   11 };
+          yield { err: 11 };
+          yield { a:   12 };
+          yield { a:   13 };
+        }, done);
+      });
+
+      it('should work with last errors', done => {
+        test(function* objGen() {
+          yield { a:   20 };
+          yield { err: 20 };
+          yield { a:   21 };
+          yield { a:   22 };
+          yield { a:   23 };
+          yield { err: 21 };
+        }, done);
       });
     });
   });

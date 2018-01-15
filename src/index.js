@@ -2,7 +2,7 @@
 
 const {
   Provider,
-  ProviderError
+  ProviderEvents
 } = require('./provider');
 
 const {
@@ -17,7 +17,7 @@ const {
 module.exports = {
   getSubjects,
   Provider,
-  ProviderError,
+  ProviderEvents,
   Store,
   StoreEvents
 };

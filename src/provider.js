@@ -42,15 +42,18 @@ const {
   getSubjects: _getSubjects
 } = require('./subjects');
 
-const CREATE = 'create';
-const ERROR  = 'error';
-const UPDATE = 'update';
-
 const DELETED = 'metadata.deleted';
 const UPDATED = 'metadata.updated';
 
+const ProviderEvents = {
+  Create:      'create',
+  StreamError: 'stream-error',
+  Update:      'update'
+};
+
 function isCreateOrUpdate(eventName) {
-  return eventName === CREATE || eventName === UPDATE;
+  return eventName === ProviderEvents.Create ||
+         eventName === ProviderEvents.Update;
 }
 
 const isNotNil = complement(isNil);
@@ -113,14 +116,6 @@ const returnOneOnly = ifElse(pipe(prop('length'), equals(1)),
   head,
   always(null)
 );
-
-class ProviderError extends Error {
-  constructor(message) {
-    super();
-
-    this.message = message;
-  }
-}
 
 class Provider extends Duplex {
   constructor({
@@ -334,12 +329,12 @@ class Provider extends Duplex {
 
     if (eventName == null) {
       sids.push(
-        ...this._removeAllListeners(CREATE),
-        ...this._removeAllListeners(UPDATE)
+        ...this._removeAllListeners(ProviderEvents.Create),
+        ...this._removeAllListeners(ProviderEvents.Update)
       );
     }
     else {
-      for (let x of this._listeners[eventName].values())
+      for (const x of this._listeners[eventName].values())
         sids.push(...x);
       this._listeners[eventName] = new Map();
     }
@@ -402,46 +397,60 @@ class Provider extends Duplex {
   }
 
   _read() {
-    if (!this._readableStreamInitialized) {
-      this.on(CREATE, this._onCreate.bind(this));
+    if (this._readableStreamInitialized)
+      return;
 
-      this._readableStreamInitialized = true;
-    }
+    this.on(ProviderEvents.Create, this._onCreate.bind(this));
+
+    this._readableStreamInitialized = true;
   }
 
   _onCreate(err, msg) {
     if (isNotNil(err))
-      return this.emit(ERROR, err);
+      return this.emit(ProviderEvents.StreamError, err);
 
     const { object } = msg;
 
     if (isNil(object))
-      return this.emit(ERROR, new ProviderError('msg.object is not set'));
+      return this.emit(ProviderEvents.StreamError, new Error(
+        'msg.object is not set'
+      ));
 
     this.push(object);
   }
 
   _write(chunk, _, callback) {
-    const resolve = partial(callback, [null]);
-    const reject  = callback;
-
-    this.create(chunk, { id: 1 }).then(resolve, reject);
+    this.create(chunk, { id: 1 }).then(() => callback(), err => {
+      // NB: Emitting `error` event or passing error to callback unpipes from
+      //     Readable. Emitting custom event instead.
+      process.nextTick(() => this.emit(ProviderEvents.StreamError, err));
+      return callback();
+    });
   }
 
   _writev(chunks, callback) {
-    const resolve = partial(callback, [null]);
-    const reject  = callback;
+    // NB: Emitting `error` event or passing error to callback unpipes from
+    //     Readable. Emitting custom event instead.
+    const emitStreamError = err => process.nextTick(
+      () => this.emit(ProviderEvents.StreamError, err)
+    );
 
-    const create = this.create.bind(this);
-
-    Promise.all(chunks.map(({ chunk }) => create(chunk, { id: 1 })))
-      .then(resolve, reject);
+    // Build sequential promise chain to preserve creation order
+    chunks.reduce(
+      (prev, { chunk }) => prev
+        .then(() => this.create(chunk, { id: 1 }))
+        // Handle `create` rejections inside same `reduce` iteration
+        .catch(emitStreamError),
+      Promise.resolve()
+    // No need to for final catch since individual errors are handled inside
+    // `reduce` iterations
+    ).then(() => callback());
   }
 }
 
 module.exports = {
   Provider,
-  ProviderError,
+  ProviderEvents,
 
   batchExec,
   exec
