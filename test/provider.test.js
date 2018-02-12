@@ -2,8 +2,7 @@
 
 const {
   equals,
-  F,
-  merge
+  F
 } = require('ramda');
 
 const {
@@ -200,7 +199,17 @@ describe('exec', () => {
       return next('{');
     }
 
-    it('on timeout', execRejects(F, 10, {}));
+    it('on timeout', done => {
+      exec(F, 10, { a: 1 }).then(
+        () => done(new Error()),
+        error => {
+          expect(error.message).toBe('query timeout after 10ms');
+          expect(error.query).toMatchObject({ a: 1 });
+
+          return done();
+        }
+      );
+    });
 
     it('on error', execRejects(errorRequest, 10, {}));
 
@@ -340,7 +349,7 @@ describe('Provider', () => {
         { max: 1 }
       ).callsArgWithAsync(
         3,
-        JSON.stringify({ result: merge(object, { _id: 1 }) })
+        JSON.stringify({ result: { ...object, _id: 1 } })
       );
 
       return new Provider({
@@ -352,7 +361,7 @@ describe('Provider', () => {
           unsubscribe() {}
         }
       }).create(object, projection).then(res => {
-        expect(res).toMatchObject(merge(object, { _id: 1 }));
+        expect(res).toMatchObject({ ...object, _id: 1 });
         expect(request.calledOnce).toBeTruthy();
       });
     });
@@ -1113,7 +1122,7 @@ describe('Provider', () => {
           JSON.stringify({ object, projection }),
           { max: 1 }
         ).callsArgWithAsync(3, JSON.stringify({
-          result: merge(object, { _id: 1 })
+          result: { ...object, _id: 1 }
         // NB: Don't pass arguments to `done`
         })).callsFake(() => done());
 

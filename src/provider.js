@@ -58,6 +58,13 @@ function isCreateOrUpdate(eventName) {
 
 const isNotNil = complement(isNil);
 
+class ProviderError extends Error {
+  constructor(message, query) {
+    super(message);
+    this.query = query;
+  }
+}
+
 const exec = curry((request, timeout, query) => new Promise(
   (resolve, reject) => request(
     JSON.stringify(query),
@@ -67,7 +74,7 @@ const exec = curry((request, timeout, query) => new Promise(
       // NB: timeout is set in Promise and not request function context
       tap(partial(clearTimeout, [ setTimeout(
         partial(reject, [
-          new Error(`query timeout after ${timeout}ms`)
+          new ProviderError(`query timeout after ${timeout}ms`, query)
         ]),
         timeout
       ) ])),
@@ -89,10 +96,12 @@ async function batchExec(exec, batchSize, options) {
   const result = [];
 
   for (let skip = 0, left = limit; left > 0; ++skip) {
-    const batch = await exec(merge(options, {
+    const batch = await exec({
+      ...options,
+
       limit: min(left, batchSize),
       skip:  batchSize * skip
-    }));
+    });
 
     result.push(...batch);
 
@@ -234,12 +243,14 @@ class Provider extends Duplex {
       },
       projection
     }).then(() => batchExec(_options => this._find({
-      conditions: merge(conditions, {
+      conditions: {
+        ...conditions,
+
         [DELETED]: {
           $exists: true,
           $ne:     null
         }
-      }),
+      },
 
       options: _options,
 
@@ -299,11 +310,13 @@ class Provider extends Duplex {
 
     const _object = !this._hasMetadata
       ? object
-      : merge(object, {
+      : {
+        ...object,
+
         $currentDate: {
           [UPDATED]: true
         }
-      });
+      };
 
     return this._update({
       conditions: this._mergeConditions({ _id: id }),
@@ -442,7 +455,7 @@ class Provider extends Duplex {
         // Handle `create` rejections inside same `reduce` iteration
         .catch(emitStreamError),
       Promise.resolve()
-    // No need to for final catch since individual errors are handled inside
+    // No need for final catch since individual errors are handled inside
     // `reduce` iterations
     ).then(() => callback());
   }

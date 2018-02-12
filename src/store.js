@@ -142,8 +142,7 @@ class Store extends EventEmitter {
       publish,
       // create model from object and then apply projection manually
       liftN(2, thenP)(
-        // assuming create model doesn't project so applying projection
-        // manually
+        // assuming create model doesn't project so applying projection manually
         pipe(
           prop('projection'),
           ifElse(isNotNil,

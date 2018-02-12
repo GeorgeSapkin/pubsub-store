@@ -1,20 +1,12 @@
 'use strict';
 
-const {
-  GraphQLID,
-  GraphQLInputObjectType,
-  GraphQLList,
-  GraphQLNonNull,
-  GraphQLObjectType,
-  GraphQLSchema,
-  GraphQLString
-} = require('graphql');
+const graphql = require('graphql');
 
 const {
   buildFields,
   buildTypes,
   getProjection
-} = require('graphql-schema-builder');
+} = require('graphql-schema-builder')(graphql);
 
 const {
   assoc,
@@ -25,6 +17,16 @@ const {
   pipe,
   prop
 } = require('ramda');
+
+const {
+  GraphQLID,
+  GraphQLInputObjectType,
+  GraphQLList,
+  GraphQLNonNull,
+  GraphQLObjectType,
+  GraphQLSchema,
+  GraphQLString
+} = graphql;
 
 const renameId = pipe(
   converge(assoc('id'), [prop('_id'), identity]),
