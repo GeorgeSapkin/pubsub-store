@@ -13,18 +13,11 @@ const {
 
 const logger = console;
 
-const SIGINT  = 'SIGINT';
-const SIGTERM = 'SIGTERM';
-
-const CONNECT   = 'connect';
-const ERROR     = 'error';
-const RECONNECT = 'reconnect';
-
 async function onTransportConnected(transport) {
   logger.log('Connected to broker');
 
-  process.on(SIGINT,  () => transport.close());
-  process.on(SIGTERM, () => transport.close());
+  process.on('SIGINT',  () => transport.close());
+  process.on('SIGTERM', () => transport.close());
 
   const userProvider = new Provider({
     schema: User,
@@ -81,7 +74,7 @@ async function onTransportConnected(transport) {
 {
   const transport = nats.connect();
 
-  transport.on(ERROR,     logger.error);
-  transport.on(RECONNECT, () => logger.log('Transport reconnected'));
-  transport.on(CONNECT,   () => onTransportConnected(transport));
+  transport.on('error',     logger.error);
+  transport.on('reconnect', () => logger.log('Transport reconnected'));
+  transport.on('connect',   () => onTransportConnected(transport));
 }

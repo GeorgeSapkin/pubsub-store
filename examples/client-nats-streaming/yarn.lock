@@ -7,8 +7,8 @@ faker@^4.1.0:
   resolved "https://registry.yarnpkg.com/faker/-/faker-4.1.0.tgz#1e45bbbecc6774b3c195fad2835109c6d748cc3f"
 
 nats@^0.7.20:
-  version "0.7.24"
-  resolved "https://registry.yarnpkg.com/nats/-/nats-0.7.24.tgz#7d27687c2dbd8aa6058a990fee6cf5c1bdc87628"
+  version "0.7.29"
+  resolved "https://registry.yarnpkg.com/nats/-/nats-0.7.29.tgz#23b203a1102887a42cc378f521cb3dc182c31327"
   dependencies:
     nuid ">=0.6.8"
 

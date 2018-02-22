@@ -1,10 +1,10 @@
 'use strict';
 
 const cors           = require('cors');
+const enableDestroy  = require('server-destroy');
 const express        = require('express');
 const expressGraphql = require('express-graphql');
 const nats           = require('nats');
-const enableDestroy  = require('server-destroy');
 
 const {
   Provider
@@ -20,20 +20,13 @@ const {
 
 const logger = console;
 
-const SIGINT  = 'SIGINT';
-const SIGTERM = 'SIGTERM';
-
-const CONNECT   = 'connect';
-const ERROR     = 'error';
-const RECONNECT = 'reconnect';
-
 const API_PORT = 3000;
 
 function onTransportConnected(app, transport) {
   logger.log('Connected to broker');
 
-  process.on(SIGINT,  () => transport.close());
-  process.on(SIGTERM, () => transport.close());
+  process.on('SIGINT',  () => transport.close());
+  process.on('SIGTERM', () => transport.close());
 
   const userProvider = new Provider({
     schema: User,
@@ -69,8 +62,8 @@ function onTransportConnected(app, transport) {
 
     enableDestroy(server);
 
-    process.once(SIGINT,  () => server.destroy());
-    process.once(SIGTERM, () => server.destroy());
+    process.once('SIGINT',  () => server.destroy());
+    process.once('SIGTERM', () => server.destroy());
   });
 }
 
@@ -81,7 +74,7 @@ function onTransportConnected(app, transport) {
 
   const transport = nats.connect();
 
-  transport.on(ERROR,     logger.error);
-  transport.on(RECONNECT, () => logger.log('Transport reconnected'));
-  transport.on(CONNECT,   () => onTransportConnected(app, transport));
+  transport.on('error',     logger.error);
+  transport.on('reconnect', () => logger.log('Transport reconnected'));
+  transport.on('connect',   () => onTransportConnected(app, transport));
 }

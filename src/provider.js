@@ -6,7 +6,6 @@ const {
 
 const {
   always,
-  bind,
   complement,
   constructN,
   curry,
@@ -152,12 +151,12 @@ class Provider extends Duplex {
 
     this._batchSize = batchSize;
 
-    this._subscribe   = bind(transport.subscribe, transport);
-    this._unsubscribe = bind(transport.unsubscribe, transport);
+    this._subscribe   = transport.subscribe.bind(transport);
+    this._unsubscribe = transport.unsubscribe.bind(transport);
 
     this._subjects = getSubjects(schema.name);
     {
-      const request = bind(transport.request, transport);
+      const request = transport.request.bind(transport);
 
       this._count = exec(
         partial(request, [this._subjects.count[0]]), timeout);
@@ -429,35 +428,36 @@ class Provider extends Duplex {
         'msg.object is not set'
       ));
 
-    this.push(object);
+    // Stream individual objects when object is an array
+    if (is(Array, object))
+      return object.map(this.push.bind(this));
+
+    return this.push(object);
   }
 
-  _write(chunk, _, callback) {
-    this.create(chunk, { id: 1 }).then(() => callback(), err => {
-      // NB: Emitting `error` event or passing error to callback unpipes from
-      //     Readable. Emitting custom event instead.
-      process.nextTick(() => this.emit(ProviderEvents.StreamError, err));
-      return callback();
-    });
-  }
-
-  _writev(chunks, callback) {
-    // NB: Emitting `error` event or passing error to callback unpipes from
-    //     Readable. Emitting custom event instead.
-    const emitStreamError = err => process.nextTick(
+  async _write(chunk, _, callback) {
+    /* NB: Emitting `error` event or passing error to callback unpipes from
+     *     Readable. Emitting custom event instead.
+     */
+    await this.create(chunk, { id: 1 }).catch(err => process.nextTick(
       () => this.emit(ProviderEvents.StreamError, err)
-    );
+    ));
 
-    // Build sequential promise chain to preserve creation order
-    chunks.reduce(
-      (prev, { chunk }) => prev
-        .then(() => this.create(chunk, { id: 1 }))
-        // Handle `create` rejections inside same `reduce` iteration
-        .catch(emitStreamError),
-      Promise.resolve()
-    // No need for final catch since individual errors are handled inside
-    // `reduce` iterations
-    ).then(() => callback());
+    return callback();
+  }
+
+  async _writev(objs, callback) {
+    const chunks = objs.map(({ chunk }) => chunk);
+    /* Send all chunks at once. There can be only one error per batch.
+     *
+     * NB: Emitting `error` event or passing error to callback unpipes from
+     *     Readable. Emitting custom event instead.
+     */
+    await this.create(chunks, { id: 1 }).catch(err => process.nextTick(
+      () => this.emit(ProviderEvents.StreamError, err)
+    ));
+
+    return callback();
   }
 }
 

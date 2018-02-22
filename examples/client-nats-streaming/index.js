@@ -18,18 +18,11 @@ const {
 
 const logger = console;
 
-const SIGINT  = 'SIGINT';
-const SIGTERM = 'SIGTERM';
-
-const CONNECT   = 'connect';
-const ERROR     = 'error';
-const RECONNECT = 'reconnect';
-
 function onTransportConnected(transport) {
   logger.log('Connected to broker');
 
-  process.on(SIGINT,  () => transport.close());
-  process.on(SIGTERM, () => transport.close());
+  process.on('SIGINT',  () => transport.close());
+  process.on('SIGTERM', () => transport.close());
 
   const userProviderA = new Provider({
     schema: User,
@@ -51,8 +44,10 @@ function onTransportConnected(transport) {
     }
   });
 
-  // Generates 3 users
-  const userGenerator = (function* nextUser() {
+  // Generates 5 users
+  const userGenerator = (function* () {
+    yield { name: faker.name.findName() };
+    yield { name: faker.name.findName() };
     yield { name: faker.name.findName() };
     yield { name: faker.name.findName() };
     yield { name: faker.name.findName() };
@@ -87,7 +82,7 @@ function onTransportConnected(transport) {
   // Provider B pipes created entities from the bus into output stream
   userProviderB.pipe(outputStream);
 
-  // Close transport once the input stream is closes
+  // Close transport once the input stream is closed
   inputStream.on('close', () => setTimeout(() => transport.close(), 100));
 
   // Entities are piped into provider A, that generate create events and
@@ -98,7 +93,7 @@ function onTransportConnected(transport) {
 {
   const transport = nats.connect();
 
-  transport.on(ERROR,     logger.error);
-  transport.on(RECONNECT, () => logger.log('Transport reconnected'));
-  transport.on(CONNECT,   () => onTransportConnected(transport));
+  transport.on('error',     logger.error);
+  transport.on('reconnect', () => logger.log('Transport reconnected'));
+  transport.on('connect',   () => onTransportConnected(transport));
 }

@@ -1,8 +1,10 @@
 'use strict';
 
 const {
+  curry,
   equals,
-  F
+  F,
+  is
 } = require('ramda');
 
 const {
@@ -1006,16 +1008,16 @@ describe('Provider', () => {
 
   describe('Readable', () => {
     describe('_read', () => {
-      it('should work', done => {
-        const msg = {
-          object: { a: 1 }
-        };
+      const test = curry((object, done) => {
+        const subscribe = stub();
 
-        const subscribe = stub()
+        subscribe
           .withArgs(subjects['create'][0])
-          .returns(1)
+          .returns(1);
+
+        subscribe
           .withArgs(subjects['create'][1])
-          .callsArgWithAsync(1, JSON.stringify(msg))
+          .callsArgWithAsync(1, JSON.stringify({ object }))
           .returns(2);
 
         const provider = new Provider({
@@ -1029,15 +1031,44 @@ describe('Provider', () => {
           }
         });
 
+        const write = stub();
+
+        if (is(Array, object)) {
+          const doneWhenDone = stub()
+            .onThirdCall()
+            .callsFake(() => done());
+
+          for (const chunk of object)
+            write
+              .withArgs(chunk)
+              .callsArgAsync(2)
+              .callsFake(doneWhenDone);
+        }
+        else
+          write
+            .withArgs(object)
+            .callsArgAsync(2)
+            // NB: Don't pass arguments to `done`
+            .callsFake(() => done());
+
         const testStream = new Writable({
           objectMode: true,
 
-          // NB: Don't pass arguments to `done`
-          write: stub().withArgs(msg.object).callsFake(() => done())
+          write
         });
 
         provider.pipe(testStream);
       });
+
+      it('should work a single object', test({ a: 1 }));
+
+      it('should work an array', test([{
+        a: 1
+      }, {
+        a: 2
+      }, {
+        a: 3
+      }]));
 
       it('should emit error on error', done => {
         const subscribe = stub()
@@ -1102,7 +1133,6 @@ describe('Provider', () => {
 
         provider.on('stream-error', err => {
           expect(err).toBeInstanceOf(Error);
-
           done();
         });
 
@@ -1112,82 +1142,44 @@ describe('Provider', () => {
   });
 
   describe('Writable', () => {
-    describe('_write', () => {
-      it('should work', done => {
-        const object     = { a:  1 };
-        const projection = { id: 1 };
-
-        const request = stub().withArgs(
-          subjects.create[0],
-          JSON.stringify({ object, projection }),
-          { max: 1 }
-        ).callsArgWithAsync(3, JSON.stringify({
-          result: { ...object, _id: 1 }
-        // NB: Don't pass arguments to `done`
-        })).callsFake(() => done());
-
-        const provider = new Provider({
-          schema: goodSchema,
-
-          transport: {
-            request,
-
-            subscribe() {},
-            unsubscribe() {}
-          }
-        });
-
-        let pushed = false;
-
-        const readStream = new Readable({
-          objectMode: true,
-
-          read() {
-            if (pushed)
-              return this.emit('close');
-
-            pushed = true;
-
-            setImmediate(() => this.push(object));
-          }
-        });
-
-        // TODO: test multiple errors
-
-        readStream.pipe(provider);
-      });
-    });
-
-    describe('_writev', () => {
-      function test(gen, done) {
-        let dataEmitted   = 0;
-        let errorsEmitted = 0;
-
-        function request(sub, msg, options, next) {
-          expect(sub).toBe(subjects.create[0]);
-          expect(options).toMatchObject({ max: 1 });
-
-          const parsed = JSON.parse(msg);
-
-          if (parsed.object.a != null) {
-            ++dataEmitted;
-
-            process.nextTick(() => next(JSON.stringify({
-              _id:    1,
-              result: parsed.obj
-            })));
-
-            if (dataEmitted === 4 && errorsEmitted === 2)
-              done();
-          }
-          else
-            process.nextTick(() => next(JSON.stringify({
-              error: {
-                message: 'Not OK'
-              }
-            })));
+    describe('_write(v)', () => {
+      const test = curry((chunks, errorOrder, done) => {
+        function* gen() {
+          for (const chunk of chunks)
+            yield chunk;
         }
 
+        const doneWhenDone = (errorOrder === 0
+          ? stub().onFirstCall()
+          : stub().onSecondCall()
+        ).callsFake(() => done());
+
+        const request    = stub();
+        const projection = { id: 1 };
+
+        request
+          .withArgs(
+            subjects.create[0],
+            JSON.stringify({ object: chunks[0], projection }),
+            { max: 1 }
+          )
+          .callsArgWithAsync(3, JSON.stringify(errorOrder === 1
+            ? { error: { message: 'error 1' } }
+            : { result: chunks[0] }
+          ));
+
+        request
+          .withArgs(
+            subjects.create[0],
+            JSON.stringify({ object: chunks.slice(1), projection }),
+            { max: 1 }
+          )
+          .callsArgWithAsync(3, JSON.stringify(errorOrder === 2
+            ? { error: { message: 'error 2' } }
+            : { result: chunks.slice(1) }
+          ))
+          .callsFake(doneWhenDone);
+
         const provider = new Provider({
           schema: goodSchema,
 
@@ -1199,16 +1191,14 @@ describe('Provider', () => {
           }
         });
 
-        let pushed = false;
-
         const readStream = new Readable({
           objectMode: true,
 
           read() {
-            if (pushed)
+            if (this._pushed)
               return this.emit('close');
 
-            pushed = true;
+            this._pushed = true;
 
             setImmediate(() => {
               for (const res of gen())
@@ -1217,48 +1207,33 @@ describe('Provider', () => {
           }
         });
 
-        provider.on('stream-error', () => {
-          ++errorsEmitted;
-
-          if (dataEmitted === 4 && errorsEmitted === 2)
-            done();
-        });
+        provider.on('stream-error', err => errorOrder !== 0
+          ? doneWhenDone()
+          : done(err)
+        );
 
         readStream.pipe(provider);
-      }
-
-      it('should work with some errors', done => {
-        test(function* objGen() {
-          yield { a:   0 };
-          yield { a:   1 };
-          yield { err: 0 };
-          yield { a:   2 };
-          yield { err: 1 };
-          yield { a:   3 };
-        }, done);
       });
 
-      it('should work with first errors', done => {
-        test(function* objGen() {
-          yield { err: 10 };
-          yield { a:   10 };
-          yield { a:   11 };
-          yield { err: 11 };
-          yield { a:   12 };
-          yield { a:   13 };
-        }, done);
-      });
+      const _chunks = [{
+        a: 0
+      }, {
+        a: 1
+      }, {
+        a: 2
+      }, {
+        a: 3
+      }, {
+        a: 4
+      }, {
+        a: 5
+      }];
 
-      it('should work with last errors', done => {
-        test(function* objGen() {
-          yield { a:   20 };
-          yield { err: 20 };
-          yield { a:   21 };
-          yield { a:   22 };
-          yield { a:   23 };
-          yield { err: 21 };
-        }, done);
-      });
+      it('should work', test(_chunks, 0));
+
+      it('should emit error from _write', test(_chunks, 1));
+
+      it('should emit error from _writev', test(_chunks, 2));
     });
   });
 });

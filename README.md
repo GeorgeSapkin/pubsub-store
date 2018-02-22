@@ -5,17 +5,24 @@
 [![Test coverage][coveralls-image]][coveralls-url]
 [![Downloads][downloads-image]][downloads-url]
 
-Pub/sub store and provider that use Mongoose-like schema to separate clients from data stores using a consistent protocol. At the same time maintaining the benefits of underlying pub/sub bus by allowing other listeners to subscribe to CRUD events.
+Pub/sub store and provider that use Mongoose-like schema to separate clients
+from data stores using a consistent protocol. At the same time maintaining the
+benefits of underlying pub/sub bus by allowing other listeners to subscribe to
+CRUD events.
 
-Multiple stores, possibly with different underlying databases, can service requests as long as they expose the same protocol.
+Multiple stores, possibly with different underlying databases, can service
+requests as long as they expose the same protocol.
 
-Providers can be used to create/update entities while others providers subscribe to notifications.
+Providers can be used to create/update entities while others providers subscribe
+to notifications.
 
 Providers support duplex streaming of entities.
 
-Integrates nicely with [graphql-schema-builder][graphql-schema-builder]. See [Examples](#examples) for GraphQL client example.
+Integrates nicely with [graphql-schema-builder][graphql-schema-builder]. See
+[Examples](#examples) for GraphQL client example.
 
-_NB:_ Currently assuming providers and underlying DB backends use the same query language.
+_NB:_ Currently assuming providers and underlying DB backends use the same query
+language.
 
 <!-- starttoc -->
 # Table of contents
@@ -55,7 +62,10 @@ npm install --save pubsub-store
 
 Exposes the underlying store in a convenient format.
 
-Implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duplex) stream to create and receive created entities. See [Streaming](#streaming) for more details.
+Implements
+[Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duplex) stream
+to create and receive created entities. See [Streaming](#streaming) for more
+details.
 
 #### Methods
 
@@ -67,7 +77,8 @@ Implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duple
 
 * `transport`
 
-  A connected transport instance. Must have `request`, `subscribe` and `unsubscribe` methods with following signatures:
+  A connected transport instance. Must have `request`, `subscribe` and
+  `unsubscribe` methods with following signatures:
 
   ```js
   const transport = {
@@ -89,13 +100,15 @@ Implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duple
 
 * `getSubjects`
 
-  Optional function that returns protocol subjects. Default implementation in [subjects.js](src/subjects.js).
+  Optional function that returns protocol subjects. Default implementation in
+  [subjects.js](src/subjects.js).
 
 * `options` _optional_
 
   * `batchSize`
 
-    Maximum result batch size. If there are more query results than `batchSize`, results will be loaded in batches of that size.
+    Maximum result batch size. If there are more query results than `batchSize`,
+    results will be loaded in batches of that size.
 
   * `timeout`
 
@@ -115,7 +128,8 @@ Returns a number of all entities in store (excluding those marked as deleted).
 
 `create(object, projection)`
 
-Creates an entity based on `object` and returns projected fields of the new entity.
+Creates an entity based on `object` and returns projected fields of the new
+entity.
 
 * `object`
 
@@ -127,7 +141,8 @@ Creates an entity based on `object` and returns projected fields of the new enti
 
 `delete(conditions, projection)`
 
-Deletes entities based on `conditions` and returns projected fields of deleted entities.
+Deletes entities based on `conditions` and returns projected fields of deleted
+entities.
 
 * `conditions`
 
@@ -151,7 +166,8 @@ Deletes an entity based on `id` and returns projected fields of deleted entity.
 
 `find(conditions, projection, options)`
 
-Find entities based on `conditions` and returns projected fields of found entities.
+Find entities based on `conditions` and returns projected fields of found
+entities.
 
 * `conditions`
 
@@ -191,7 +207,8 @@ Find entities based on `id` and returns projected fields of found entity.
 
 `updateById(id, object, projection)`
 
-Updates an entity based on `id` using `object` and returns projected fields of the updated entity.
+Updates an entity based on `id` using `object` and returns projected fields of
+the updated entity.
 
 * `id`
 
@@ -219,7 +236,8 @@ Emitted when an entity update event is received from the underlying message bus.
 
 `stream-error`
 
-Emitted from either `Readable` or `Writable` side of the `Duplex` stream instead of an `error`. In case of `Writable` this prevents any upstreams from unpiping.
+Emitted from either `Readable` or `Writable` side of the `Duplex` stream instead
+of an `error`. In case of `Writable` this prevents any upstreams from unpiping.
 
 ```js
 function listener(err, query) { /* ... */ }
@@ -227,7 +245,9 @@ function listener(err, query) { /* ... */ }
 
 #### Streaming
 
-Since `Provider` implements [Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duplex) stream class, entities can be piped to and from a provider instance.
+Since `Provider` implements
+[Duplex](https://nodejs.org/api/stream.html#stream_class_stream_duplex) stream
+class, entities can be piped to and from a provider instance.
 
 ```js
 const provider = new SomeProvider({ /* */ });
@@ -239,11 +259,13 @@ provider.pipe(someWritableStream);
 someReadableStream.pipe(provider);
 ```
 
-See [client-nats-streaming](examples/client-nats-streaming) example for more details.
+See [client-nats-streaming](examples/client-nats-streaming) example for more
+details.
 
 ### Store
 
-Exposes create, find, update methods over the pub/sub bus to be consumed by providers.
+Exposes count, create, find and update methods over the pub/sub bus to be
+consumed by providers.
 
 #### Methods
 
@@ -251,12 +273,18 @@ Exposes create, find, update methods over the pub/sub bus to be consumed by prov
 
 * `buildModel`
 
-  A function that builds a model based on a schema. A model must have `create`, `find` and `update` methods that accept protocol arguments.
+  A function that builds a model based on a schema. A model must have `count`,
+  `create`, `find` and `update` methods that accept protocol arguments.
+
+  `create` must handle `object` being both a single object or an array.
+
+  See [server-nats-mongo](examples/server-nats-mongo) example for more details.
 
   ```js
   function buildModel(schema) {
     return {
-      create(object)                        { /* */ },
+      count(conditions)                     { /* */ },
+      create(object, projection)            { /* */ },
       find(conditions, projection, options) { /* */ },
       update(conditions, object, options)   { /* */ }
     };
@@ -269,7 +297,8 @@ Exposes create, find, update methods over the pub/sub bus to be consumed by prov
 
 * `transport`
 
-  A connected transport instance. Must have `subscribe` and `unsubscribe` methods with following signatures:
+  A connected transport instance. Must have `subscribe` and `unsubscribe`
+  methods with following signatures:
 
   ```js
   const transport = {
@@ -287,7 +316,8 @@ Exposes create, find, update methods over the pub/sub bus to be consumed by prov
 
 * `getSubjects`
 
-  Optional function that returns protocol subjects. Default implementation in [subjects.js](src/subjects.js).
+  Optional function that returns protocol subjects. Default implementation in
+  [subjects.js](src/subjects.js).
 
 `open()`
 
@@ -311,7 +341,8 @@ Events are emitted on corresponding request errors.
 
 `getSubjects(name, { prefixes, suffix })`
 
-Function that can be passed to both [Provider](#provider) and [Store](#store) constructors and returns protocol subjects based on schema name.
+Function that can be passed to both [Provider](#provider) and [Store](#store)
+constructors and returns protocol subjects based on schema name.
 
 * `name`
 
@@ -336,9 +367,11 @@ Function that can be passed to both [Provider](#provider) and [Store](#store) co
 
 ## Protocol
 
-Protocol is implemented by Provider and Store and is presented here for reference.
+Protocol is implemented by Provider and Store and is presented here for
+reference.
 
-_NB:_ Currently assuming providers and underlying DB backends use the same query language.
+_NB:_ Currently assuming providers and underlying DB backends use the same query
+language.
 
 _NB:_ Projections cannot have both included and excluded fields.
 
@@ -362,7 +395,8 @@ _NB:_ Projections cannot have both included and excluded fields.
 
 ### Count Method
 
-Count request is published to `count.schema-name` subject by default. Returns the number of entities matching conditions.
+Count request is published to `count.schema-name` subject by default. Returns
+the number of entities matching conditions.
 
 ```js
 {
@@ -375,11 +409,12 @@ Count request is published to `count.schema-name` subject by default. Returns th
 
 ### Create Method
 
-Create request is published to `create.schema-name` subject by default. Returns newly-created entity with projection applied.
+Create request is published to `create.schema-name` subject by default. Returns
+a newly-created entity or a list of entities with projection applied.
 
 ```js
 {
-  object:     {
+  object: {
     field1: 'value 1',
     field2: 2
     // etc.
@@ -394,7 +429,8 @@ Create request is published to `create.schema-name` subject by default. Returns 
 
 ### Find Method
 
-Find request is published to `find.schema-name` subject by default. Returns a list of entities matching conditions with projection applied or an empty list.
+Find request is published to `find.schema-name` subject by default. Returns a
+list of entities matching conditions with projection applied or an empty list.
 
 ```js
 {
@@ -416,7 +452,8 @@ Find request is published to `find.schema-name` subject by default. Returns a li
 
 ### Update Method
 
-Update request is published to `update.schema-name` subject by default. Returns updated entity with projection applied or an empty list.
+Update request is published to `update.schema-name` subject by default. Returns
+an updated entity with projection applied or an empty list.
 
 ```js
 {
@@ -444,7 +481,9 @@ Update request is published to `update.schema-name` subject by default. Returns 
 
 ## Schema
 
-`fields` can be either an object or a function accepting `{ Mixed, ObjectId }`. See Mongoose [Guide](http://mongoosejs.com/docs/guide.html) for more details about Schema definition.
+`fields` can be either an object or a function accepting `{ Mixed, ObjectId }`.
+See Mongoose [Guide](http://mongoosejs.com/docs/guide.html) for more details
+about Schema definition.
 
 Schema format is shared with [graphql-schema-builder][graphql-schema-builder].
 
@@ -541,14 +580,15 @@ const schemas = {
 
 ## Examples
 
-See [examples](examples) for [NATS](https://github.com/nats-io/node-nats), [Mongo/Mongoose](https://github.com/Automattic/mongoose), [GraphQL](https://github.com/facebook/graphql) and streaming examples.
+See [examples](examples) for [NATS](https://github.com/nats-io/node-nats),
+[Mongo/Mongoose](https://github.com/Automattic/mongoose),
+[GraphQL](https://github.com/facebook/graphql) and streaming examples.
 
 ## TODO
 
 * Abstract pub/sub bus interface into transport adapters
-* Abstract DB interface and query language into DB adapters
 * In-code documentation
-* Implement bulk create/update
+* Implement bulk update
 * Implement deleting as opposed to marking as deleted
 * Implement aggregate
 

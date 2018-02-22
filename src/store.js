@@ -11,24 +11,18 @@ const {
 } = require('events');
 
 const {
-  bind,
   complement,
   curry,
-  equals,
   identity,
   ifElse,
   invoker,
   is,
   isNil,
-  keys,
   liftN,
   merge,
-  nthArg,
   objOf,
   partial,
   pick,
-  pickAll,
-  pickBy,
   pipe,
   prop,
   propOr,
@@ -48,9 +42,11 @@ const {
   getSubjects: _getSubjects
 } = require('./subjects');
 
-const catchP   = invoker(2, 'then')(null);
+const catchP   = invoker(1, 'catch');
 const isNot    = complement(is);
 const isNotNil = complement(isNil);
+const liftN2   = liftN(2);
+const liftN3   = liftN(3);
 const thenP    = invoker(1, 'then');
 const thenP2   = invoker(2, 'then');
 
@@ -85,11 +81,12 @@ const exec = curry((emit, publish, process, msg, replyTo) => {
   if (isNot(String, replyTo))
     return reject `replyTo must be a string`;
 
+  // emits an error either on parse or on process
   return pipe(
     tryCatch(JSON.parse, identity),
     ifElse(is(Error),
       pipe(
-        bind(Promise.reject, Promise),
+        Promise.reject.bind(Promise),
         tap(catchP(emit)),
         catchP(buildError),
         thenP(partial(publish, [replyTo]))
@@ -114,13 +111,12 @@ class Store extends EventEmitter {
   }) {
     super();
 
-    assert(buildModel instanceof Function,
-      'buildModel must be a function');
+    assert(buildModel instanceof Function, 'buildModel must be a function');
     assertSchema(schema);
     assert(isNotNil(transport), 'transport must be set');
 
-    this._subscribe   = bind(transport.subscribe, transport);
-    this._unsubscribe = bind(transport.unsubscribe, transport);
+    this._subscribe   = transport.subscribe.bind(transport);
+    this._unsubscribe = transport.unsubscribe.bind(transport);
 
     this._subjects = getSubjects(schema.name);
 
@@ -140,33 +136,18 @@ class Store extends EventEmitter {
     this._onCreate = exec(
       partial(emit, [StoreEvents.CreateError]),
       publish,
-      // create model from object and then apply projection manually
-      liftN(2, thenP)(
-        // assuming create model doesn't project so applying projection manually
-        pipe(
-          prop('projection'),
-          ifElse(isNotNil,
-            // is not nill
-            pipe(
-              pickBy(pipe(nthArg(0), equals(1))),
-              keys,
-              pickAll
-            ),
-            // else
-            identity
-          )
-        ),
-        pipe(
-          prop('object'),
-          model.create.bind(model)
-        )
+      liftN2(model.create.bind(model))(
+        // `create` must tell the difference between a single object and an
+        // array and then project correctly
+        prop('object'),
+        prop('projection')
       )
     );
 
     this._onFind = exec(
       partial(emit, [StoreEvents.FindError]),
       publish,
-      liftN(3, model.find.bind(model))(
+      liftN3(model.find.bind(model))(
         propOr({}, 'conditions'),
         prop('projection'),
         prop('options')
@@ -176,7 +157,7 @@ class Store extends EventEmitter {
     this._onUpdate = exec(
       partial(emit, [StoreEvents.UpdateError]),
       publish,
-      liftN(3, model.update.bind(model))(
+      liftN3(model.update.bind(model))(
         prop('conditions'),
         prop('object'),
         pipe(

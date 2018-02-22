@@ -1,9 +1,7 @@
 'use strict';
 
 const {
-  bind,
-  F,
-  partial
+  F
 } = require('ramda');
 
 const {
@@ -188,9 +186,7 @@ describe('Store', () => {
     });
   });
 
-  function testOn(method, errorEvent, msg, resolved = {
-    result: { a: 1 }
-  }) {
+  function testOn(storeMethod, modelMethod, errorEvent, msg, args, resolved) {
     describe('should reject', () => {
       const store = new Store({
         buildModel,
@@ -199,7 +195,7 @@ describe('Store', () => {
         transport: goodTransport
       });
 
-      const _rejects = rejects(bind(store[method], store));
+      const _rejects = rejects(store[storeMethod].bind(store));
 
       it('without msg', _rejects(null, null));
 
@@ -217,32 +213,29 @@ describe('Store', () => {
     });
 
     describe('should resolve', () => {
-      const goodBuildModel = () => ({
-        count:  partial(bind(Promise.resolve, Promise), [7]),
-        create: bind(Promise.resolve, Promise),
-        find:   bind(Promise.resolve, Promise),
-        update: bind(Promise.resolve, Promise)
-      });
-
-      const err = new Error('msg');
-
-      const badBuildModel = () => ({
-        count:  partial(bind(Promise.reject, Promise), [err]),
-        create: partial(bind(Promise.reject, Promise), [err]),
-        find:   partial(bind(Promise.reject, Promise), [err]),
-        update: partial(bind(Promise.reject, Promise), [err])
-      });
-
       it('with good args', done => {
-        const publish = stub().withArgs(
-          'replyTo',
-          JSON.stringify(resolved)
-        // NB: Don't pass arguments to `done`
-        ).callsFake(() => done());
+        const model = {
+          count:  F,
+          create: F,
+          find:   F,
+          update: F
+        };
+
+        model[modelMethod] = stub()
+          .withArgs(...args)
+          .resolves(resolved.result);
+
+        const publish = stub()
+          .withArgs(
+            'replyTo',
+            JSON.stringify(resolved)
+          // NB: Don't pass arguments to `done`
+          ).callsFake(()  => done());
 
         const store = new Store({
-          buildModel: goodBuildModel,
-          schema:     goodSchema,
+          buildModel: () => model,
+
+          schema: goodSchema,
 
           transport: {
             publish,
@@ -252,10 +245,20 @@ describe('Store', () => {
           }
         });
 
-        store[method](JSON.stringify(msg), 'replyTo');
+        store[storeMethod](JSON.stringify(msg), 'replyTo');
       });
 
       it('and return error when model rejects', done => {
+        const err    = new Error('msg');
+        const reject = Promise.reject.bind(Promise, err);
+
+        const badBuildModel = () => ({
+          count:  reject,
+          create: reject,
+          find:   reject,
+          update: reject
+        });
+
         const publish = stub().withArgs(
           'replyTo',
           JSON.stringify({ error: {
@@ -276,44 +279,90 @@ describe('Store', () => {
           }
         });
 
-        store[method](JSON.stringify(msg), 'replyTo');
+        store[storeMethod](JSON.stringify(msg), 'replyTo');
       });
     });
   }
 
-  describe('_onCount', () => testOn(
-    '_onCount',
-    StoreEvents.CountError,
-    {
-      object: { a: 1, b: 2 }
-    },
-    { result: 7 }
-  ));
+  describe('_onCount', () => {
+    const object = { a: 1, b: 2 };
 
-  describe('_onCreate', () => testOn(
-    '_onCreate',
-    StoreEvents.CreateError,
-    {
-      object: { a: 1, b: 2 },
-      projection: { a: 1 }
-    }
-  ));
+    const msg  = { object };
+    const args = [ object ];
 
-  describe('_onFind', () => testOn(
-    '_onFind',
-    StoreEvents.FindError,
-    {
-      conditions: { a: 1 }
-    }
-  ));
+    const resolved = {
+      result: 7
+    };
 
-  describe('_onUpdate', () => testOn(
-    '_onFind',
-    StoreEvents.FindError,
-    {
-      conditions: { id: 1 },
-      object:     { a: 1 }
-    },
-    { result: { id: 1 } }
-  ));
+    testOn(
+      '_onCount',
+      'count',
+      StoreEvents.CountError,
+      msg,
+      args,
+      resolved
+    );
+  });
+
+  describe('_onCreate', () => {
+    const object     = { a: 1, b: 2 };
+    const projection = { a: 1 };
+
+    const msg  = { object, projection };
+    const args = [ object, projection ];
+
+    const resolved = {
+      result: { a: 1 }
+    };
+
+    testOn(
+      '_onCreate',
+      'create',
+      StoreEvents.CreateError,
+      msg,
+      args,
+      resolved
+    );
+  });
+
+  describe('_onFind', () => {
+    const object = { conditions: { a: 1 } };
+
+    const msg  = { object };
+    const args = [ object ];
+
+    const resolved = {
+      result: { a: 1 }
+    };
+
+    testOn(
+      '_onFind',
+      'find',
+      StoreEvents.FindError,
+      msg,
+      args,
+      resolved
+    );
+  });
+
+  describe('_onUpdate', () => {
+    const conditions = { id: 1 };
+    const object     = { a: 1 };
+
+    const msg  = { conditions, object };
+    const args = [ conditions, object ];
+
+    const resolved = {
+      result: { id: 1 }
+    };
+
+    testOn(
+      '_onUpdate',
+      'update',
+      StoreEvents.UpdateError,
+      msg,
+      args,
+      resolved
+    );
+  });
 });

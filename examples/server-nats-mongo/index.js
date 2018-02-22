@@ -4,7 +4,14 @@ const mongoose = require('mongoose');
 const nats     = require('nats');
 
 const {
-  F
+  equals,
+  F,
+  is,
+  keys,
+  nthArg,
+  pickAll,
+  pickBy,
+  pipe
 } = require('ramda');
 
 const {
@@ -15,33 +22,55 @@ const {
   User
 } = require('../schema/user');
 
-// override default Mongoose promises: http://mongoosejs.com/docs/promises.html
-mongoose.Promise = global.Promise;
-
 const logger = console;
 
-const SIGINT  = 'SIGINT';
-const SIGTERM = 'SIGTERM';
+const DB = 'mongodb://localhost/example';
 
-const CONNECT   = 'connect';
-const CONNECTED = 'connected';
-const ERROR     = 'error';
-const RECONNECT = 'reconnect';
+function buildModel(db, schema) {
+  const model = db.model(schema.name, schema.fields);
+
+  return {
+    count(conditions) {
+      return model.count(conditions);
+    },
+
+    create(obj, projection) {
+      const project = pipe(
+        pickBy(pipe(nthArg(0), equals(1))),
+        keys,
+        pickAll
+      )(projection);
+
+      if (is(Array, obj))
+        // Insert many and apply projection to original data
+        return model.collection.insertMany(obj).then(() => project(obj));
+      else
+        // Insert and apply projection to result
+        return model.create(obj).then(project);
+    },
+
+    find(conditions, projection, options) {
+      return model.find(conditions, projection, options);
+    },
+
+    update(conditions, object, projection) {
+      return model.update(conditions, object, {
+        select: projection
+      });
+    }
+  };
+}
 
 function onTransportConnected(db, transport) {
-  logger.log('Connected to broker');
+  logger.info('Connected to broker');
 
-  process.on(SIGINT,  () => transport.close());
-  process.on(SIGTERM, () => transport.close());
-
-  function buildModel(schema) {
-    return db.model(schema.name, schema.fields);
-  }
+  process.on('SIGINT',  () => transport.close());
+  process.on('SIGTERM', () => transport.close());
 
   const userStore = new Store({
-    schema: User,
+    schema:     User,
+    buildModel: buildModel.bind(null, db),
 
-    buildModel,
     transport
   });
 
@@ -49,24 +78,32 @@ function onTransportConnected(db, transport) {
 }
 
 function onDbConnected(db) {
-  logger.log('Connected to database');
+  logger.info('Connected to database:', DB);
 
-  process.on(SIGINT,  () => db.close());
-  process.on(SIGTERM, () => db.close());
+  async function dbClose() {
+    await db.dropDatabase();
+    logger.info('Dropped database');
+
+    // HACK: Cannot db.close() because DB is already destroyed
+    process.exit();
+  }
+
+  process.once('SIGINT',  dbClose);
+  process.once('SIGTERM', dbClose);
 
   const transport = nats.connect();
 
-  transport.on(ERROR,     logger.error);
-  transport.on(RECONNECT, () => logger.log('Transport reconnected'));
-  transport.on(CONNECT,   () => onTransportConnected(db, transport));
+  transport.on('error',     logger.error);
+  transport.on('reconnect', () => logger.info('Transport reconnected'));
+  transport.on('connect',   () => onTransportConnected(db, transport));
 }
 
 {
   const db = mongoose.createConnection();
 
-  db.on(ERROR, logger.error);
+  db.on('error', logger.error);
 
-  db.on(CONNECTED, () => onDbConnected(db));
+  db.on('connected', () => onDbConnected(db));
 
-  db.openUri('mongodb://localhost/example').catch(F);
+  db.openUri(DB).catch(F);
 }
