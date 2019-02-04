@@ -1,6 +1,6 @@
 {
   "name": "server-nats-mongo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pub/Sub Store NATS/Mongo server example",
   "main": "index.js",
   "scripts": {
@@ -13,7 +13,7 @@
   "author": "George Sapkin",
   "license": "MIT",
   "dependencies": {
-    "mongoose": "^5.0.3",
-    "nats": "^0.7.20"
+    "mongoose": "^5.4.9",
+    "nats": "^1.2.2"
   }
 }

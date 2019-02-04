@@ -24,14 +24,14 @@ const {
 
 const logger = console;
 
-const DB = 'mongodb://localhost/example';
+const DB = 'mongodb://localhost:27017/example';
 
 function buildModel(db, schema) {
   const model = db.model(schema.name, schema.fields);
 
   return {
     count(conditions) {
-      return model.count(conditions);
+      return model.countDocuments(conditions);
     },
 
     create(obj, projection) {
@@ -54,7 +54,7 @@ function buildModel(db, schema) {
     },
 
     update(conditions, object, projection) {
-      return model.update(conditions, object, {
+      return model.updateOne(conditions, object, {
         select: projection
       });
     }
@@ -105,5 +105,5 @@ function onDbConnected(db) {
 
   db.on('connected', () => onDbConnected(db));
 
-  db.openUri(DB).catch(F);
+  db.openUri(DB, { useNewUrlParser: true }).catch(F);
 }

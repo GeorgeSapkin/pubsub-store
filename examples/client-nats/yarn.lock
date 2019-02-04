@@ -5,13 +5,29 @@
 faker@^4.1.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/faker/-/faker-4.1.0.tgz#1e45bbbecc6774b3c195fad2835109c6d748cc3f"
+  integrity sha1-HkW7vsxndLPBlfrSg1EJxtdIzD8=
 
-nats@^0.7.20:
-  version "0.7.29"
-  resolved "https://registry.yarnpkg.com/nats/-/nats-0.7.29.tgz#23b203a1102887a42cc378f521cb3dc182c31327"
+nats@^1.2.2:
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/nats/-/nats-1.2.2.tgz#0f6f290f146d0daa2c5906f98e7c5e00a75be539"
+  integrity sha512-uGHVNvmXboHYYgxpF4ENLkjCgoUAIx33seYs3g+qiDQzxuM28qoi7xq5mnFwOYfYMNC7kGVGk9/WiXTItpOxPQ==
   dependencies:
-    nuid ">=0.6.8"
+    nuid "^1.0.0"
+    ts-nkeys "^1.0.8"
 
-nuid@>=0.6.8:
-  version "0.6.14"
-  resolved "https://registry.yarnpkg.com/nuid/-/nuid-0.6.14.tgz#a225c8b720e46c563ad8d13641368669f6c25b48"
+nuid@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/nuid/-/nuid-1.0.0.tgz#04ecc21be41cc321940a9089984382f3bdc61638"
+  integrity sha512-046ukkoG8NXjiJMpQYLpGhYJIXJlClt2rDlnubCXN1/pztO/YTD2WkhyBZsEADsUwVtVMv5UmC0B2QrT5sZiDQ==
+
+ts-nkeys@^1.0.8:
+  version "1.0.10"
+  resolved "https://registry.yarnpkg.com/ts-nkeys/-/ts-nkeys-1.0.10.tgz#b4f978bdeea981fad6d3bc5183af6e76d6f7aa3c"
+  integrity sha512-T5TPWXl8EzCIqnuauGluNNUZPZM1rfRL6oE97xFHPH44TSFDNMHPkaN4/c95MuiV+JeYyrC+edLzpHr+Gc+YEw==
+  dependencies:
+    tweetnacl "^1.0.0"
+
+tweetnacl@^1.0.0:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/tweetnacl/-/tweetnacl-1.0.1.tgz#2594d42da73cd036bd0d2a54683dd35a6b55ca17"
+  integrity sha512-kcoMoKTPYnoeS50tzoqjPY3Uv9axeuuFAZY9M/9zFnhoVvRfxz9K29IMPD7jGmt2c8SW7i3gT9WqDl2+nV7p4A==
