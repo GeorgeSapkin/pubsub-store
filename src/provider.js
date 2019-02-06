@@ -5,10 +5,12 @@ const {
 } = require('assert');
 
 const {
+  __,
   always,
   complement,
   constructN,
   curry,
+  curryN,
   equals,
   head,
   identity,
@@ -22,7 +24,8 @@ const {
   pipe,
   prop,
   tap,
-  tryCatch
+  tryCatch,
+  unary
 } = require('ramda');
 
 const {
@@ -64,30 +67,35 @@ class ProviderError extends Error {
   }
 }
 
-const exec = curry((request, timeout, query) => new Promise(
-  (resolve, reject) => request(
-    JSON.stringify(query),
-    { max: 1 },
-    pipe(
-      // reject query on timeout
-      // NB: timeout is set in Promise and not request function context
-      tap(partial(clearTimeout, [ setTimeout(
-        partial(reject, [
-          new ProviderError(`query timeout after ${timeout}ms`, query)
-        ]),
-        timeout
-      ) ])),
-      JSON.parse,
+const exec = curry((request, { noAckStream, timeout }, query) => new Promise(
+  (resolve, reject) => pipe(
+    JSON.stringify,
+    ifElse(always(noAckStream),
+      pipe(unary(request), resolve),
+      curryN(2, request)(__, pipe(
+        // reject query on timeout
+        // NB: timeout is set in Promise context only when noAckStream
+        //     is false and is cancelled in request callback
+        tap(partial(clearTimeout, [ !noAckStream
+          ? setTimeout(
+            partial(reject, [
+              new ProviderError(`query timeout after ${timeout}ms`, query)
+            ]),
+            timeout
+          )
+          : null
+        ])),
+        JSON.parse,
 
-      // if error is not set -> resolve
-      // else                -> reject
-      ifElse(pipe(prop('error'), isNil),
-        // Add 'more' to 'result' if it exists and resolve
-        pipe(prop('result'), resolve),
-        pipe(path(['error', 'message']), constructN(1, Error), reject)
-      )
+        // if error is not set -> resolve
+        // else                -> reject
+        ifElse(pipe(prop('error'), isNil),
+          pipe(prop('result'), resolve),
+          pipe(path(['error', 'message']), constructN(1, Error), reject)
+        )
+      ))
     )
-  )
+  )(query)
 ));
 
 async function batchExec(exec, batchSize, options) {
@@ -133,12 +141,15 @@ class Provider extends Duplex {
     getSubjects = _getSubjects,
 
     options: {
-      batchSize = 5000,
-      timeout   = 1000
+      batchSize     = 5000,
+      highWaterMark = undefined,
+      noAckStream   = false,
+      timeout       = 1000
     } = {}
   }) {
     super({
-      objectMode: true
+      objectMode: true,
+      highWaterMark
     });
 
     assertSchema(schema);
@@ -155,21 +166,40 @@ class Provider extends Duplex {
     this._unsubscribe = transport.unsubscribe.bind(transport);
 
     this._subjects = getSubjects(schema.name);
-    {
-      const request = transport.request.bind(transport);
 
-      this._count = exec(
-        partial(request, [this._subjects.count[0]]), timeout);
-
-      this._create = exec(
-        partial(request, [this._subjects.create[0]]), timeout);
-
-      this._find = exec(
-        partial(request, [this._subjects.find[0]]), timeout);
-
-      this._update = exec(
-        partial(request, [this._subjects.update[0]]), timeout);
+    function request(subject, msg, callback) {
+      transport.request(subject, msg, { max: 1 }, callback);
     }
+
+    this._count = exec(
+      partial(request, [this._subjects.count[0]]), { timeout }
+    );
+
+    this._create = exec(
+      partial(request, [this._subjects.create[0]]), { timeout }
+    );
+
+    // Allows piping to provider without acknowledgement, i.e. fire and forget
+    const streamCreate = noAckStream
+      ? exec(
+        transport.publish.bind(transport, this._subjects.create[0]),
+        { noAckStream, timeout }
+      )
+      : this._create;
+
+    const projection = { id: 1 };
+    this._streamCreate = object => streamCreate({
+      object,
+      projection
+    });
+
+    this._find = exec(
+      partial(request, [this._subjects.find[0]]), { timeout }
+    );
+
+    this._update = exec(
+      partial(request, [this._subjects.update[0]]), { timeout }
+    );
 
     this._listeners = {
       create: new Map(),
@@ -439,7 +469,7 @@ class Provider extends Duplex {
     /* NB: Emitting `error` event or passing error to callback unpipes from
      *     Readable. Emitting custom event instead.
      */
-    await this.create(chunk, { id: 1 }).catch(err => process.nextTick(
+    await this._streamCreate(chunk).catch(err => process.nextTick(
       () => this.emit(ProviderEvents.StreamError, err)
     ));
 
@@ -453,7 +483,7 @@ class Provider extends Duplex {
      * NB: Emitting `error` event or passing error to callback unpipes from
      *     Readable. Emitting custom event instead.
      */
-    await this.create(chunks, { id: 1 }).catch(err => process.nextTick(
+    await this._streamCreate(chunks).catch(err => process.nextTick(
       () => this.emit(ProviderEvents.StreamError, err)
     ));
 

@@ -69,7 +69,7 @@ details.
 
 #### Methods
 
-`constructor({ schema, transport, getSubjects, options: { batchSize, timeout }}`
+`constructor({ schema, transport, getSubjects, options: { batchSize, highWaterMark, noAckStreams, timeout }}`
 
 * `schema`
 
@@ -109,6 +109,15 @@ details.
 
     Maximum result batch size. If there are more query results than `batchSize`,
     results will be loaded in batches of that size.
+
+  * `highWaterMark`
+
+    When set, the stream will push messages in chunks of that size.
+
+  * `noAckStreams`
+
+    When `true`, allows piping to provider without acknowledgement, i.e. fire
+    and forget.
 
   * `timeout`
 

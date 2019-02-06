@@ -199,8 +199,6 @@ describe('Store', () => {
 
       it('without msg', _rejects(null, null));
 
-      it('without replyTo', _rejects('{}', null));
-
       it('with unparsable msg and trigger event', done => {
         let eventHappened = false;
         store.once(errorEvent, () => { eventHappened = true; });

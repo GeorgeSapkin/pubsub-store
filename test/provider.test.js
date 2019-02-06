@@ -167,9 +167,9 @@ describe('exec', () => {
 
       const request = stub()
         .withArgs(JSON.stringify(query))
-        .callsArgWithAsync(2, JSON.stringify({ result }));
+        .callsArgWithAsync(1, JSON.stringify({ result }));
 
-      return exec(request, 20, query).then(res => {
+      return exec(request, { timeout: 20 }, query).then(res => {
         expect(res).toMatchObject(result);
 
         expect(request.calledOnce).toBeTruthy();
@@ -182,9 +182,9 @@ describe('exec', () => {
 
       const request = stub()
         .withArgs(JSON.stringify(query))
-        .callsArgWithAsync(2, JSON.stringify({ result }));
+        .callsArgWithAsync(1, JSON.stringify({ result }));
 
-      return exec(request, 20, query).then(res => {
+      return exec(request, { timeout: 20 }, query).then(res => {
         expect(res).toMatchObject(result);
 
         expect(request.calledOnce).toBeTruthy();
@@ -202,7 +202,7 @@ describe('exec', () => {
     }
 
     it('on timeout', done => {
-      exec(F, 10, { a: 1 }).then(
+      exec(F, { timeout: 10 }, { a: 1 }).then(
         () => done(new Error()),
         error => {
           expect(error.message).toBe('query timeout after 10ms');
@@ -1143,7 +1143,7 @@ describe('Provider', () => {
 
   describe('Writable', () => {
     describe('_write(v)', () => {
-      const test = curry((chunks, errorOrder, done) => {
+      const test = curry((chunks, errorOrder, noAckStream, done) => {
         function* gen() {
           for (const chunk of chunks)
             yield chunk;
@@ -1180,14 +1180,50 @@ describe('Provider', () => {
           ))
           .callsFake(doneWhenDone);
 
+        const publish = stub();
+
+        const pub0 = publish
+          .withArgs(
+            subjects.create[0],
+            JSON.stringify({ object: chunks[0], projection })
+          );
+
+        const pub1 = publish
+          .withArgs(
+            subjects.create[0],
+            JSON.stringify({ object: chunks.slice(1), projection })
+          );
+
+        if (!noAckStream) {
+          pub0
+            .callsArgWithAsync(2, JSON.stringify(errorOrder === 1
+              ? { error: { message: 'error 1' } }
+              : { result: chunks[0] }
+            ));
+
+          pub1
+            .callsArgWithAsync(2, JSON.stringify(errorOrder === 2
+              ? { error: { message: 'error 2' } }
+              : { result: chunks.slice(1) }
+            ))
+            .callsFake(doneWhenDone);
+        }
+        else
+          pub1.callsFake(doneWhenDone);
+
         const provider = new Provider({
           schema: goodSchema,
 
           transport: {
             request,
+            publish,
 
             subscribe() {},
             unsubscribe() {}
+          },
+
+          options: {
+            noAckStream
           }
         });
 
@@ -1229,11 +1265,13 @@ describe('Provider', () => {
         a: 5
       }];
 
-      it('should work', test(_chunks, 0));
+      it('should work', test(_chunks, 0, false));
 
-      it('should emit error from _write', test(_chunks, 1));
+      it('should emit error from _write', test(_chunks, 1, false));
 
-      it('should emit error from _writev', test(_chunks, 2));
+      it('should emit error from _writev', test(_chunks, 2, false));
+
+      it('should work with noAckStream', test(_chunks, 0, true));
     });
   });
 });

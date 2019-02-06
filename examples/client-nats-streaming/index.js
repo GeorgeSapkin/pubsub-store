@@ -18,6 +18,9 @@ const {
 
 const logger = console;
 
+const MAX_USERS   = 100000;
+const TIMER_LABEL = `Pushed and received ${MAX_USERS} users in`;
+
 function onTransportConnected(transport) {
   logger.log('Connected to broker');
 
@@ -30,6 +33,10 @@ function onTransportConnected(transport) {
     transport,
 
     options: {
+      // Set higher highWaterMark to speed up streaming
+      highWaterMark: 1000,
+      // Do not acknowledge create messages to speed up streaming
+      noAckStream: true,
       timeout: 5000
     }
   });
@@ -44,26 +51,24 @@ function onTransportConnected(transport) {
     }
   });
 
-  // Generates 5 users
+  // Generates MAX_USERS users
   const userGenerator = (function* () {
-    yield { name: faker.name.findName() };
-    yield { name: faker.name.findName() };
-    yield { name: faker.name.findName() };
-    yield { name: faker.name.findName() };
-    yield { name: faker.name.findName() };
+    for (let x = 0; x < MAX_USERS; ++x)
+      yield { name: faker.name.findName() };
   })();
+
+  let receivedUsers = 0;
+
+  logger.time(TIMER_LABEL);
 
   const inputStream = new Readable({
     objectMode: true,
+    highWaterMark: 1000,
 
     read() {
       const result = userGenerator.next();
-
-      // Close the stream when there are no more users to pipe
       if (result.done)
-        return this.emit('close');
-
-      logger.log('Piping user:', result.value);
+        return;
 
       this.push(result.value);
     }
@@ -71,11 +76,18 @@ function onTransportConnected(transport) {
 
   const outputStream = new Writable({
     objectMode: true,
+    highWaterMark: 1000,
 
-    write(chunk, _, callback) {
-      logger.log('Piped user:', chunk);
+    write(_0, _1, callback) {
+      receivedUsers++;
 
-      callback(null);
+      // Close the stream when there are no more users to pipe
+      if (receivedUsers === MAX_USERS) {
+        logger.timeEnd(TIMER_LABEL);
+        inputStream.emit('close');
+      }
+
+      callback();
     }
   });
 
@@ -83,7 +95,9 @@ function onTransportConnected(transport) {
   userProviderB.pipe(outputStream);
 
   // Close transport once the input stream is closed
-  inputStream.on('close', () => setTimeout(() => transport.close(), 100));
+  inputStream.on('close', () => setTimeout(() => {
+    transport.close();
+  }, 10));
 
   // Entities are piped into provider A, that generate create events and
   // publishes them on to the bus

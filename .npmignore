@@ -8,4 +8,4 @@ test
 .gitignore
 .gitlab-ci.yml
 .travis.yml
-yarn.lock
+yarn-error.log

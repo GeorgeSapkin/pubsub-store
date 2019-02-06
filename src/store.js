@@ -11,6 +11,7 @@ const {
 } = require('events');
 
 const {
+  always,
   complement,
   curry,
   identity,
@@ -27,7 +28,8 @@ const {
   prop,
   propOr,
   tap,
-  tryCatch
+  tryCatch,
+  when
 } = require('ramda');
 
 const {
@@ -78,8 +80,6 @@ const buildResult = objOf('result');
 const exec = curry((emit, publish, process, msg, replyTo) => {
   if (isNot(String, msg))
     return reject `msg must be a string`;
-  if (isNot(String, replyTo))
-    return reject `replyTo must be a string`;
 
   // emits an error either on parse or on process
   return pipe(
@@ -93,9 +93,14 @@ const exec = curry((emit, publish, process, msg, replyTo) => {
       ),
       pipe(
         process,
-        thenP2(buildResult, buildError),
-        thenP(JSON.stringify),
-        thenP(partial(publish, [replyTo]))
+        // Publish a response only when `replyTo` is set
+        when(pipe(always(replyTo), isNotNil),
+          pipe(
+            thenP2(buildResult, buildError),
+            thenP(JSON.stringify),
+            thenP(partial(publish, [replyTo]))
+          )
+        )
       )
     )
   )(msg);
