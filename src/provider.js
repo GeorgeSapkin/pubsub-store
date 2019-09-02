@@ -176,7 +176,7 @@ class Provider extends Duplex {
     );
 
     this._create = exec(
-      partial(request, [this._subjects.create[0]]), { timeout }
+      partial(request, [this._subjects.create[0]]), { noAckStream, timeout }
     );
 
     // Allows piping to provider without acknowledgement, i.e. fire and forget
