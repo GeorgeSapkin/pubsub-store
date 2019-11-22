@@ -13,7 +13,7 @@
   "author": "George Sapkin",
   "license": "MIT",
   "dependencies": {
-    "mongoose": "^5.4.9",
+    "mongoose": "^5.7.5",
     "nats": "^1.2.2"
   }
 }
