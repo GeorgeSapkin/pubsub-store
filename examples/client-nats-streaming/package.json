@@ -13,7 +13,7 @@
   "author": "George Sapkin",
   "license": "MIT",
   "dependencies": {
-    "faker": "^4.1.0",
+    "faker": "^5.1.0",
     "nats": "^1.2.2"
   }
 }
