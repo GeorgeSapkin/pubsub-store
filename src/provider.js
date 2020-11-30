@@ -76,14 +76,12 @@ const exec = curry((request, { noAckStream, timeout }, query) => new Promise(
         // reject query on timeout
         // NB: timeout is set in Promise context only when noAckStream
         //     is false and is cancelled in request callback
-        tap(partial(clearTimeout, [ !noAckStream
-          ? setTimeout(
-            partial(reject, [
-              new ProviderError(`query timeout after ${timeout}ms`, query)
-            ]),
-            timeout
-          )
-          : null
+        tap(partial(clearTimeout, [ setTimeout(
+          partial(reject, [
+            new ProviderError(`query timeout after ${timeout}ms`, query)
+          ]),
+          timeout
+        )
         ])),
         JSON.parse,
 

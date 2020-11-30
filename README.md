@@ -69,7 +69,7 @@ details.
 
 #### Methods
 
-`constructor({ schema, transport, getSubjects, options: { batchSize, highWaterMark, noAckStreams, timeout }}`
+`constructor({ schema, transport, getSubjects, options: { batchSize, highWaterMark, noAckStream, timeout }}`
 
 * `schema`
 
@@ -114,7 +114,7 @@ details.
 
     When set, the stream will push messages in chunks of that size.
 
-  * `noAckStreams`
+  * `noAckStream`
 
     When `true`, allows piping to provider without acknowledgement, i.e. fire
     and forget.
